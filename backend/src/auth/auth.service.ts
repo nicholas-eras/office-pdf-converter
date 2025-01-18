@@ -24,7 +24,7 @@ export class AuthService {
       access_token: await this.jwtService.signAsync(payload, {
         secret: Buffer.from(process.env.JWT_PRIVATE_KEY, 'base64'),
         algorithm: 'RS256', 
-        expiresIn: '60s',
+        expiresIn: '1h',
       }),
     };
   }

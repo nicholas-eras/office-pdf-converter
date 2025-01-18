@@ -2,14 +2,17 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from 'src/users/users.module';
-import { AuthService } from '../service/auth.service';
-import { AuthController } from '../controller/auth.controller';
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+import { PassportModule } from '@nestjs/passport';
+import { JwtStrategy } from './auth.jwt-strategy';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true
     }),
+    PassportModule.register({ defaultStrategy: 'jwt' }), 
     UsersModule,
     JwtModule.registerAsync({
       useFactory: () => {
@@ -26,7 +29,7 @@ import { AuthController } from '../controller/auth.controller';
           privateKey: Buffer.from(privateKey, 'base64'),
           publicKey: Buffer.from(publicKey, 'base64'),
           signOptions: {
-            expiresIn: '60s',
+            expiresIn: '1h',
             algorithm: 'RS256',
           },
           verifyOptions: {
@@ -36,7 +39,7 @@ import { AuthController } from '../controller/auth.controller';
       },
     }),
   ],
-  providers: [AuthService],
+  providers: [AuthService, JwtStrategy],
   controllers: [AuthController],
   exports: [AuthService]
 })

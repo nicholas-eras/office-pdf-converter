@@ -1,0 +1,11 @@
+services:
+  postgres:
+    image: postgres
+    container_name: postgres
+    environment:
+      - POSTGRES_DB=files_storage
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres2024
+    ports:
+      - 5433:5432
+    restart: always

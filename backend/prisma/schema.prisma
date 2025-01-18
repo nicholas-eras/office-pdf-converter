@@ -1,0 +1,46 @@
+// schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model File {
+  id          Int      @id @default(autoincrement())
+  fileName    String   @unique
+  fileExtension String
+  status      String
+  createdAt   DateTime @default(now())
+  convertedFiles ConvertedFile[]
+  userFiles   UserFile[]
+}
+
+model User {
+  id        Int        @id @default(autoincrement())
+  username  String     @unique
+  password  String
+  createdAt DateTime   @default(now())
+  userFiles UserFile[]
+}
+
+model UserFile {
+  id      Int    @id @default(autoincrement())
+  userId  Int
+  fileId  Int
+  user    User   @relation(fields: [userId], references: [id])
+  file    File   @relation(fields: [fileId], references: [id])
+
+  @@unique([userId, fileId]) // Garante que um usuário só tenha uma relação com um arquivo
+}
+
+model ConvertedFile {
+  id        Int      @id @default(autoincrement())
+  fileId    Int
+  fileName  String
+  createdAt DateTime @default(now())
+  file      File     @relation(fields: [fileId], references: [id])
+}

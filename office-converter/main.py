@@ -6,28 +6,28 @@ from threading import Thread
 import socketio
 
 app = FastAPI()
-sio = socketio.Client(logger = True)
+sio = socketio.Client(logger=True)
 
 def connect_socket():
     try:
         print("Connecting to Socket.IO server...")
-        sio.connect('http://localhost:3000', 
-                   transports=['websocket'])
-        
+        sio.connect('http://localhost:3000', transports=['websocket'])
+
         @sio.event
         def connect():
             print("Connected to Socket.IO server!")
-            
+
         @sio.event
         def connect_error(data):
             print(f"Connection error: {data}")
-            
+
         @sio.event
         def disconnect():
             print("Disconnected from Socket.IO server")
-            
+
     except Exception as e:
         print(f"Socket.IO connection error: {str(e)}")
+
 connect_socket()
 
 class FileRequest(BaseModel):
@@ -35,8 +35,8 @@ class FileRequest(BaseModel):
     mimeType: str
 
 def convert_to_pdf(file_to_convert: str, output: str):
-    cmd = ['libreoffice', '--headless', '--convert-to', 'pdf', file_to_convert ,'--outdir', "converted_files/"]
-    sio.emit('update-file-status', {'fileToConvert': output, 'status':'processing'})        
+    cmd = ['libreoffice', '--headless', '--convert-to', 'pdf', file_to_convert, '--outdir', "converted_files/"]
+    sio.emit('update-file-status', {'fileToConvert': output, 'status': 'processing'})
 
     try:
         process = subprocess.run(
@@ -45,15 +45,17 @@ def convert_to_pdf(file_to_convert: str, output: str):
             capture_output=True,
             text=True
         )
-        if process.returncode != 0:
-            raise HTTPException(detail="Server error", status_code=500)
+
+        if process.stderr != '':
+            print(process)
+            raise HTTPException(detail="Server error process", status_code=500)
         else:
-            sio.emit('update-file-status', {'fileToConvert': output, 'status':'done'})    
+            sio.emit('update-file-status', {'fileToConvert': output, 'status': 'done'})
     except Exception as e:
         print(e)
-        raise HTTPException(detail="Server error", status_code=500)
+        raise HTTPException(detail="Server error conversion", status_code=500)
     
-    finally:        
+    finally:
         if os.path.exists(file_to_convert):
             os.remove(file_to_convert)
 
@@ -61,28 +63,25 @@ def convert_to_pdf(file_to_convert: str, output: str):
 async def convert_file(file: UploadFile):
     fileName = file.filename[:file.filename.rfind('.')]
     output = f"{fileName}.pdf"
-    temp_file_path = f"temp_{file.filename}"
+    temp_file_path = f"{file.filename}"
 
     if os.path.exists(f"{os.getcwd()}/{output}"):
-        raise HTTPException(status_code=404, detail="Arquivo já convertido.")    
+        raise HTTPException(status_code=404, detail="Arquivo já convertido.")
 
     try:
         contents = await file.read()
         with open(temp_file_path, "wb") as f:
             f.write(contents)
-            
+
         if sio.connected:
-            sio.emit('upload-file-to-conversion', {'fileToConvert': output})        
+            sio.emit('upload-file-to-conversion', {'fileToConvert': output})
             Thread(target=convert_to_pdf, args=(temp_file_path, output)).start()
             return {"message": f"File {output} is in queue for conversion."}
         else:
             os.remove(temp_file_path)
-            raise HTTPException(detail="Server error", status_code=500)
-            
+            raise HTTPException(detail="Server error socket", status_code=500)
+
     except Exception as e:
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
         raise HTTPException(status_code=500, detail=str(e))
-    finally:        
-        if os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
