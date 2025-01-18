@@ -15,11 +15,11 @@ export class AuthService {
     if (!user){
       throw new NotFoundException("User not found.");
     } 
-    return await bcrypt.compare(password, user.password);      
+    return await bcrypt.compare(password, user.password) ? user : false;      
   }
 
-  async get_access_token(user: any) {
-    const payload = { username: user.username, sub: user.userId };
+  async get_access_token(user: {username: string, id: number}) {
+    const payload = { username: user.username, sub: user.id };
     return {
       access_token: await this.jwtService.signAsync(payload, {
         secret: Buffer.from(process.env.JWT_PRIVATE_KEY, 'base64'),

@@ -34,7 +34,7 @@ model UserFile {
   user    User   @relation(fields: [userId], references: [id])
   file    File   @relation(fields: [fileId], references: [id])
 
-  @@unique([userId, fileId]) // Garante que um usuário só tenha uma relação com um arquivo
+  @@unique([userId, fileId])
 }
 
 model ConvertedFile {

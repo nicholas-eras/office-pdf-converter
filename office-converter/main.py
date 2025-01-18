@@ -1,12 +1,39 @@
-from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException, UploadFile, Depends
 from pydantic import BaseModel
 import os
 import subprocess
 from threading import Thread
 import socketio
+from sqlalchemy import create_engine, Column, Integer, String, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
+from datetime import datetime
 
 app = FastAPI()
 sio = socketio.Client(logger=True)
+
+DATABASE_URL = "postgresql://postgres:postgres2024@172.19.0.2:5432/files_storage"
+
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+Base = declarative_base()
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+class ConvertedFile(Base):
+    __tablename__ = "ConvertedFile"
+    id = Column(Integer, primary_key=True, index=True)
+    fileName = Column(String, index=True)
+    fileId = Column(String)    
+    createdAt = Column(DateTime, default=datetime.utcnow) 
+
+Base.metadata.create_all(bind=engine)
 
 def connect_socket():
     try:
@@ -59,9 +86,10 @@ def convert_to_pdf(file_to_convert: str, output: str):
         if os.path.exists(file_to_convert):
             os.remove(file_to_convert)
 
-@app.post("/convert-file/")
-async def convert_file(file: UploadFile):
+@app.post("/convert-file/{item_id}")
+async def convert_file(item_id: int, file: UploadFile, db: Session = Depends(get_db)):
     fileName = file.filename[:file.filename.rfind('.')]
+    file_extension = file.filename[file.filename.rfind("."):]
     output = f"{fileName}.pdf"
     temp_file_path = f"{file.filename}"
 
@@ -76,8 +104,18 @@ async def convert_file(file: UploadFile):
         if sio.connected:
             sio.emit('upload-file-to-conversion', {'fileToConvert': output})
             Thread(target=convert_to_pdf, args=(temp_file_path, output)).start()
+            
+            new_item = ConvertedFile(
+                fileName= output,
+                fileId= item_id,
+            )
+            db.add(new_item)
+            db.commit()
+            db.refresh(new_item)
+            
             return {"message": f"File {output} is in queue for conversion."}
         else:
+            print(sio.connected)
             os.remove(temp_file_path)
             raise HTTPException(detail="Server error socket", status_code=500)
 

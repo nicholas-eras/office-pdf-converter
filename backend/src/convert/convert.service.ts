@@ -11,28 +11,35 @@ export class ConvertService {
     private readonly prisma: PrismaService
   ){}
 
-  async convert(file: Express.Multer.File): Promise<FileEntity> {
+  async convert(file: Express.Multer.File, user: {userId: number, username: string}): Promise<FileEntity> {
     const url = 'http://localhost:8000/convert-file/';
     const formData = new FormData();
     const blob = new Blob([file.buffer], { type: file.mimetype });
     const fileName = Buffer.from(file.originalname, 'latin1').toString('utf8');
     formData.append('file', blob, fileName);
-
     try {      
+      const fileDatabase = await this.prisma.file.create({
+        data:{
+          fileExtension: fileName.slice(fileName.lastIndexOf(".")),
+          fileName: fileName,
+          status: "awaiting",
+        }
+      });
+      await this.prisma.userFile.create({
+        data:{
+          userId: user.userId,
+          fileId: fileDatabase.id
+        }
+      });
+
       const response = await firstValueFrom(
-        this.httpService.post(url, formData, {
+        this.httpService.post(url + fileDatabase.id, formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
         }),     
       );  
-      // await this.prisma.file.create({
-      //   data:{
-      //     fileExtension: fileName.slice(fileName.lastIndexOf(".")),
-      //     fileName: fileName,
-      //     status: "awaiting",
-      //   }
-      // });
+      
       return response.data;
     } catch (error) {
       await this.prisma.file.delete({
