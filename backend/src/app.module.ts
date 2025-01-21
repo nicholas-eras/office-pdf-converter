@@ -6,7 +6,7 @@ import { ConfigModule } from '@nestjs/config';
 import { UsersModule } from './users/users.module';
 import { ConvertModule } from './convert/convert.module';
 import { FileStatusMonitorGateway } from './convert/SocketIO/file-status-monitor-gateway';
-import { FilesModule } from './files/files.module';
+import { PrismaService } from 'prisma/prisma.service';
 
 @Module({
   imports: [
@@ -16,9 +16,8 @@ import { FilesModule } from './files/files.module';
     AuthModule,
     UsersModule,
     ConvertModule,
-    FilesModule,
   ],
   controllers: [AppController],
-  providers: [AppService, FileStatusMonitorGateway],
+  providers: [AppService, FileStatusMonitorGateway, PrismaService],
 })
 export class AppModule {}

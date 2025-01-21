@@ -1,7 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { FileEntity } from './entities/file.entity';
 import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
@@ -11,7 +10,11 @@ export class ConvertService {
     private readonly prisma: PrismaService
   ){}
 
-  async convert(file: Express.Multer.File, user: {userId: number, username: string}): Promise<FileEntity> {
+  async convert(file: Express.Multer.File, user: {userId: number, username: string}): Promise<{
+    fileName: string;
+    mimeType: string;
+  }
+  > {
     const url = 'http://localhost:8000/convert-file/';
     const formData = new FormData();
     const blob = new Blob([file.buffer], { type: file.mimetype });
@@ -31,7 +34,7 @@ export class ConvertService {
           fileId: fileDatabase.id
         }
       });
-
+ 
       const response = await firstValueFrom(
         this.httpService.post(url + fileDatabase.id, formData, {
           headers: {

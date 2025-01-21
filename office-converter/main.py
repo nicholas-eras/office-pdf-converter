@@ -63,7 +63,9 @@ class FileRequest(BaseModel):
 
 def convert_to_pdf(file_to_convert: str, output: str):
     cmd = ['libreoffice', '--headless', '--convert-to', 'pdf', file_to_convert, '--outdir', "converted_files/"]
-    sio.emit('update-file-status', {'fileToConvert': output, 'status': 'processing'})
+    from datetime import datetime
+
+    sio.emit('update-file-status', {'fileToConvert': file_to_convert, 'status': 'processing'})
 
     try:
         process = subprocess.run(
@@ -77,7 +79,7 @@ def convert_to_pdf(file_to_convert: str, output: str):
             print(process)
             raise HTTPException(detail="Server error process", status_code=500)
         else:
-            sio.emit('update-file-status', {'fileToConvert': output, 'status': 'done'})
+            sio.emit('update-file-status', {'fileToConvert': file_to_convert, 'status': 'done'})
     except Exception as e:
         print(e)
         raise HTTPException(detail="Server error conversion", status_code=500)
@@ -92,13 +94,16 @@ async def convert_file(item_id: int, file: UploadFile, db: Session = Depends(get
     file_extension = file.filename[file.filename.rfind("."):]
     output = f"{fileName}.pdf"
     temp_file_path = f"{file.filename}"
-
+    store_file = "converted_files/" + temp_file_path
     if os.path.exists(f"{os.getcwd()}/{output}"):
         raise HTTPException(status_code=404, detail="Arquivo já convertido.")
 
     try:
         contents = await file.read()
         with open(temp_file_path, "wb") as f:
+            f.write(contents)
+
+        with open(store_file, "wb") as f:
             f.write(contents)
 
         if sio.connected:

@@ -28,4 +28,12 @@ export class AuthService {
       }),
     };
   }
+
+  async validate_token(token) {
+    try {
+      return this.jwtService.verify(token);
+    } catch (err) {
+        return false;
+    }
+  }
 }

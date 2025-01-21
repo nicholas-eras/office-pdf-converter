@@ -1,5 +1,7 @@
-import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException, UseGuards, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { Request } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -12,5 +14,11 @@ export class AuthController {
       throw new UnauthorizedException('Invalid credentials');
     }
     return this.authService.get_access_token(user);
+  }
+
+  @Post('validate-token')
+  async validateToken(@Req() req: Request) {    
+    const token: any = req.headers?.authorization.split(" ")[1];   
+    return this.authService.validate_token(token);
   }
 }

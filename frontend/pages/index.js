@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { uploadFile } from '../services/file';
+import { userFiles } from '../services/file';
+import AuthRequired  from '../services/auth-required';
+import downloadFile from '../services/file';
 
 function UploadPage() {
   const [files, setFiles] = useState([]);
@@ -14,14 +17,7 @@ function UploadPage() {
 
   useEffect(() => {
     const fetchFilesStatus = async () => {
-      const filesFromBackend = [
-        { id: 1, name: 'documento.docx', status: 'awaiting', pdf: 'documento.pdf' },
-        { id: 2, name: 'relatorio.xlsx', status: 'processing', pdf: 'relatorio.pdf' },
-        { id: 3, name: 'apresentacao.pptx', status: 'done', pdf: 'apresentacao.pdf' },
-        { id: 4, name: 'outro.docx', status: 'done', pdf: 'outro.pdf' },
-        { id: 5, name: 'maisum.docx', status: 'awaiting', pdf: 'maisum.pdf' },
-        { id: 6, name: 'muitomais.docx', status: 'processing', pdf: 'muitomais.pdf' }
-      ];
+      const filesFromBackend = await userFiles();      
       setUploadedFiles(filesFromBackend);
     };
     fetchFilesStatus();
@@ -32,16 +28,34 @@ function UploadPage() {
   const currentFiles = uploadedFiles.slice(indexOfFirstFile, indexOfLastFile);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
-  const downloadFile = (fileName, type) => {
-    const url = type === 'pdf' ? fileName : fileName.split('.pdf')[0] + '.' + fileName.split('.')[1];
-    const link = document.createElement('a');
-    link.href = url; // Substitua por uma URL real ou use uma API para obter o arquivo
-    link.setAttribute('download', fileName);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  
+  const handleDownloadFile = async (fileName) => {
+    try {
+      const response = await downloadFile(fileName);
+        
+      if (response.ok) {        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+      else{
+        console.log(response);
+        throw new Error('Erro ao baixar o arquivo');
+      }        
+    } catch (error) {
+      console.error('Erro ao baixar o arquivo:', error);
+      // Aqui você pode adicionar um alerta ou notificação para o usuário
+      alert('Ocorreu um erro ao tentar baixar o arquivo. Por favor, tente novamente.');
+      // Pode ser útil limpar algum estado ou UI que indique que um download está em andamento
+    }
   };
+  
 
   const handleFileSend = async() => {
     if (files.length === 0) {
@@ -84,8 +98,7 @@ function UploadPage() {
             <table className="w-full bg-white border border-gray-300">
               <thead>
                 <tr>
-                  <th className="px-4 py-3 border-b-2 border-gray-300 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Nome do Arquivo</th>
-                  <th className="px-4 py-3 border-b-2 border-gray-300 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">PDF</th>
+                  <th className="px-4 py-3 border-b-2 border-gray-300 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Nome do Arquivo</th>        
                   <th className="px-4 py-3 border-b-2 border-gray-300 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3 border-b-2 border-gray-300 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Ações</th>
                 </tr>
@@ -93,8 +106,7 @@ function UploadPage() {
               <tbody>
                 {currentFiles.map((file, index) => (
                   <tr key={file.id} className="hover:bg-gray-100">
-                    <td className="px-4 py-4 whitespace-nowrap border-b border-gray-200">{file.name}</td>
-                    <td className="px-4 py-4 whitespace-nowrap border-b border-gray-200">{file.pdf}</td>
+                    <td className="px-4 py-4 whitespace-nowrap border-b border-gray-200">{file.fileName}</td>
                     <td className="px-4 py-4 whitespace-nowrap border-b border-gray-200">
                       <span className={`px-3 py-1 text-xs font-semibold text-white rounded-full 
                         ${file.status === 'done' ? 'bg-green-500' : 
@@ -104,9 +116,9 @@ function UploadPage() {
                       </span>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap border-b border-gray-200 text-sm font-medium">
-                      <button onClick={() => downloadFile(file.name, 'original')} className="text-blue-600 hover:text-blue-900 mr-2">Original</button>
+                      <button onClick={() => handleDownloadFile(file.fileName, 'original')} className="text-blue-600 hover:text-blue-900 mr-2">Original</button>
                       {file.status === "done" && 
-                      <button onClick={() => downloadFile(file.pdf, 'pdf')} className="text-green-600 hover:text-green-900">PDF</button>
+                      <button onClick={() => handleDownloadFile(file.pdf.fileName, 'pdf')} className="text-green-600 hover:text-green-900">PDF</button>
                       }
                     </td>
                   </tr>
@@ -136,4 +148,4 @@ function UploadPage() {
   );
 }
 
-export default UploadPage;
+export default AuthRequired(UploadPage);
