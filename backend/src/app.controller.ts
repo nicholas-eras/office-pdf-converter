@@ -8,10 +8,5 @@ export class AppController {
   @Get()
   getHello(): string {
     return "Hello";
-  }
-
-  @Get("url")
-  async getPreSignedUrl(): Promise<any>{
-    return await this.appService.PreSignedUrlS3();
-  }
+  }  
 }

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { GetObjectCommand, S3 } from '@aws-sdk/client-s3';
+import { S3 } from '@aws-sdk/client-s3';
 import { 
   PutObjectCommand, 
   PutObjectCommandInput,
@@ -98,8 +98,8 @@ export class AppService {
     }
   }
 
-  async PreSignedUrlS3() {
-    const command = new PutObjectCommand({ Bucket: this.AWS_S3_BUCKET, Key: process.env.AWS_S3_SECRET_ACCESS_KEY });
-    return getSignedUrl(this.s3, command, { expiresIn: 60 });
+  async PreSignedUrlS3(filename: string, contentType: string) {
+    const command = new PutObjectCommand({ Bucket: this.AWS_S3_BUCKET, Key: filename, ContentType: contentType });
+    return {"url": await getSignedUrl(this.s3, command, { expiresIn: 60 })};
   };  
 }

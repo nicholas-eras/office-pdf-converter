@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { uploadFile } from '../services/file';
+import { uploadToS3 } from '../services/file';
 import { userFiles } from '../services/file';
 import AuthRequired  from '../services/auth-required';
 import downloadFile from '../services/file';
@@ -56,7 +56,6 @@ function UploadPage() {
     }
   };
   
-
   const handleFileSend = async() => {
     if (files.length === 0) {
       alert('Por favor, selecione pelo menos um arquivo para enviar.');
@@ -65,7 +64,7 @@ function UploadPage() {
     // Aqui você faria uma requisição ao backend para enviar os arquivos
     console.log('Enviando arquivos:', files);
     // Limpar a seleção de arquivos após o envio
-    const response = await uploadFile(files[0]);
+    const response = await uploadToS3(files[0]);
     console.log(response);
   };
 

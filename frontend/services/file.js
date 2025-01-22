@@ -22,6 +22,55 @@ export async function uploadFile(file) {
     throw error;
   }
 }
+
+const putToS3 = async (url, file) => {
+  try {
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': file.type,
+      },
+      body: file
+    });
+    
+    if (!response.ok) {
+      console.log(response);
+      throw new Error(`Upload failed: ${response.status}`);
+    }
+    return "Arquivo enviado com sucesso!";
+  } catch (error) {
+    throw error;
+  }
+};
+
+export async function uploadToS3(file) {  
+  try {
+    const token = localStorage.getItem("token");
+    const response = await fetch("http://localhost:3000/file/pre-signed-url", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body:JSON.stringify({
+        filename: file.name,
+        contentType: file.type 
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error("Erro ao obter a URL pré-assinada");
+    }
+
+    const { url } = await response.json();
+
+    const result = await putToS3(url, file);
+  } catch (error) {
+    console.error("Erro no upload para o S3:", error);
+    throw error;
+  }
+}
+
 import Router from 'next/router';
 
 export async function userFiles() {  

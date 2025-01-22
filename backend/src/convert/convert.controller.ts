@@ -5,10 +5,14 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Request } from 'express';
 import { createReadStream } from 'fs';
 import { join } from 'path';
+import { AppService } from 'src/app.service';
 
 @Controller('file')
 export class ConvertController {
-  constructor(private readonly convertService: ConvertService) {}
+  constructor(
+    private readonly convertService: ConvertService,
+    private readonly appService: AppService
+  ) {}
 
   @Post("convert")
   @UseGuards(JwtAuthGuard)
@@ -24,5 +28,13 @@ export class ConvertController {
     const fileName = body.fileName.slice(0, body.fileName.lastIndexOf(".")) + ".pdf"
     const file = createReadStream(join(path, fileName));
     return new StreamableFile(file);
+  }
+
+  @Post("pre-signed-url")
+  @UseGuards(JwtAuthGuard)
+  async getPreSignedUrl(
+    @Body() body: { filename: string, contentType: string }
+  ): Promise<any> {
+    return await this.appService.PreSignedUrlS3(body.filename, body.contentType);
   }
 }
