@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { PrismaService } from 'prisma/prisma.service';
 import { Server, Socket } from 'socket.io';
@@ -6,6 +7,8 @@ import { Server, Socket } from 'socket.io';
 export class FileStatusMonitorGateway {  
   constructor(private readonly prisma: PrismaService) {}
   private files = {};
+  
+  private logger = new Logger('External Connection');   
   
   @WebSocketServer()
   server: Server;
@@ -40,11 +43,11 @@ export class FileStatusMonitorGateway {
 
   handleConnection(socket: Socket) {
     this.server.emit('file-to-conversion-queue',this.files);
-    console.log(`Socket connected: ${socket.id}`);
+    this.logger.log(`Socket connected: ${socket.id}`);    
   }
 
   handleDisconnect(socket: Socket) {
-    console.log(`Socket disconnected: ${socket.id}`);
+    this.logger.log(`Socket disconnected: ${socket.id}`);    
   }
 
 }

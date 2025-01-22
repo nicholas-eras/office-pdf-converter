@@ -2,12 +2,14 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { PrismaService } from 'prisma/prisma.service';
+import { AppService } from 'src/app.service';
 
 @Injectable()
 export class ConvertService {
   constructor(
     private readonly httpService: HttpService, 
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly appService: AppService
   ){}
 
   async convert(file: Express.Multer.File, user: {userId: number, username: string}): Promise<{
@@ -42,14 +44,38 @@ export class ConvertService {
           }
         }),     
       );  
+
+      await this.appService.uploadFile(file);
       
       return response.data;
     } catch (error) {
+      await this.prisma.convertedFile.deleteMany({
+        where:{
+          fileId: (await this.prisma.file.findUnique({
+            where: {
+              fileName
+            }
+          })).id,
+        }
+      });
+
+      await this.prisma.userFile.delete({
+        where:{        
+          userId_fileId: {
+            fileId:  (await this.prisma.file.findUnique({
+              where: {
+                fileName
+              }
+            })).id,
+            userId: user.userId
+          }
+        }
+      });
       await this.prisma.file.delete({
         where:{
           fileName: fileName
         }
-      })
+      });
       console.error(error.response);
       throw new InternalServerErrorException(`Erro ao converter arquivo: ${error.response?.data?.detail ?? error.message}`);
     }    

@@ -7,6 +7,11 @@ export class AppController {
 
   @Get()
   getHello(): string {
-    return this.appService.getHello();
+    return "Hello";
+  }
+
+  @Get("url")
+  async getPreSignedUrl(): Promise<any>{
+    return await this.appService.PreSignedUrlS3();
   }
 }
