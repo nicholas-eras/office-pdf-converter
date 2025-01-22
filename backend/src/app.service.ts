@@ -1,13 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { S3 } from '@aws-sdk/client-s3';
 import { 
   PutObjectCommand, 
   PutObjectCommandInput,
-  ObjectCannedACL 
+  ObjectCannedACL, GetObjectCommand
 } from '@aws-sdk/client-s3';
 import { STS } from '@aws-sdk/client-sts';
 import { GetCallerIdentityCommand } from '@aws-sdk/client-sts';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { PrismaService } from 'prisma/prisma.service';
+import { Readable } from 'stream';
+import { Response } from 'express'
 
 @Injectable()
 export class AppService {
@@ -32,7 +35,7 @@ export class AppService {
     this.sts = new STS({
       credentials,
       region: this.AWS_REGION,
-    });
+    });    
   }
 
   async uploadFile(file: {
@@ -98,8 +101,65 @@ export class AppService {
     }
   }
 
-  async PreSignedUrlS3(filename: string, contentType: string) {
+  async PreSignedUrlS3(filename: string, contentType: string, user: {userId: number, username: string}) {
+    await this.saveFileOnDatabase(filename, user.userId);
     const command = new PutObjectCommand({ Bucket: this.AWS_S3_BUCKET, Key: filename, ContentType: contentType });
     return {"url": await getSignedUrl(this.s3, command, { expiresIn: 60 })};
   };  
+
+  async getFileS3(filename: string, res: Response,  user: {userId: number, username: string}) {
+    const prisma = new PrismaService();
+    const file = await prisma.file.findUnique({
+      where:{
+        fileName: filename
+      }
+    });
+    
+    if (!file){
+      throw new NotFoundException("file not on database");
+    }
+    
+    if (!(await prisma.userFile.findUnique({
+      where:{
+        userId_fileId:{
+          userId: user.userId,
+          fileId: file.id
+        }
+      }
+    }))){
+      throw new UnauthorizedException("This file doesnt belongs to you");
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: this.AWS_S3_BUCKET,
+      Key: filename,
+    });
+    const s3res = await this.s3.send(command);    
+
+    res.set({
+      'Content-Type': s3res.ContentType || 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+
+    (s3res.Body as Readable).pipe(res as unknown as NodeJS.WritableStream);
+  };  
+
+  private async saveFileOnDatabase(filename: string, userId: number): Promise<void>{
+    const prisma = new PrismaService();
+    
+    const fileDatabase = await prisma.file.create({
+      data:{
+        fileExtension: filename.slice(filename.lastIndexOf(".")),
+        fileName: filename,
+        status: "awaiting",
+      }
+    });
+
+    await prisma.userFile.create({
+      data:{
+        userId: userId,
+        fileId: fileDatabase.id
+      }
+    });
+  }
 }

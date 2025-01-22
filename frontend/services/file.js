@@ -97,25 +97,19 @@ export async function userFiles() {
 }
 
 export async function downloadFile(fileName) {
-  try {
-    // Faça uma requisição POST para o endpoint de download. 
-    // Usamos POST aqui porque queremos enviar o nome do arquivo no corpo da requisição.   
+  try {   
     const token = localStorage.getItem('token');   
-    const response = await fetch('http://localhost:3000/file/download/', {
-      method: 'POST',
-      body:JSON.stringify({
-        fileName: fileName
-      }),
+    const response = await fetch('http://localhost:3000/file/download/' + encodeURIComponent(fileName), {
+      method: 'GET',     
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`, 
       },
-      responseType: 'blob', // importante para obter o arquivo como um Blob
+      responseType: 'blob', 
     });
     return response   
   } catch (error) {
-    console.error('Erro ao baixar o arquivo:', error);
-    // Lidar com o erro, talvez mostrando uma mensagem para o usuário
+    console.error('Erro ao baixar o arquivo:', error);    
   }
 };
 
