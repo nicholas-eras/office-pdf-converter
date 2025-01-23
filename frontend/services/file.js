@@ -112,5 +112,18 @@ export async function downloadFile(fileName) {
   }
 };
 
-export default downloadFile;
-
+export async function deleteFile(fileId) {
+  try {   
+    const token = localStorage.getItem('token');   
+    const response = await fetch('http://localhost:3000/file/' + fileId, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`, 
+      },      
+    });
+    return response   
+  } catch (error) {
+    console.error('Erro ao deletar o arquivo:', error);    
+  }
+};

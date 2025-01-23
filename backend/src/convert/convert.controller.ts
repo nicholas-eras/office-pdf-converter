@@ -1,4 +1,4 @@
-import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, Req, Get, StreamableFile, Body, Res, Param } from '@nestjs/common';
+import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, Req, Get, StreamableFile, Body, Res, Param, Delete } from '@nestjs/common';
 import { ConvertService } from './convert.service';
 import { FileInterceptor } from '@nestjs/platform-express/multer';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -50,5 +50,15 @@ export class ConvertController {
   ): Promise<any> {
     const user: any = req.user;
     return await this.appService.getFileS3(filename, res, user);
+  }
+
+  @Delete(":filename")
+  @UseGuards(JwtAuthGuard)
+  async deleteFile(
+    @Param('filename') fileId: number,
+    @Req() req: Request,    
+  ): Promise<any> {
+    const user: any = req.user;    
+    return await this.convertService.deleteFile(fileId, user.userId);
   }
 }

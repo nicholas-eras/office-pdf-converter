@@ -3,7 +3,7 @@ import { S3 } from '@aws-sdk/client-s3';
 import { 
   PutObjectCommand, 
   PutObjectCommandInput,
-  ObjectCannedACL, GetObjectCommand
+  ObjectCannedACL, GetObjectCommand, DeleteObjectCommand
 } from '@aws-sdk/client-s3';
 import { STS } from '@aws-sdk/client-sts';
 import { GetCallerIdentityCommand } from '@aws-sdk/client-sts';
@@ -162,4 +162,10 @@ export class AppService {
       }
     });
   }
+
+  async deleteFileS3(filename: string) {
+    const command = new DeleteObjectCommand({ Bucket: this.AWS_S3_BUCKET, Key: filename });
+    const s3res = await this.s3.send(command);    
+    return s3res;
+  };  
 }

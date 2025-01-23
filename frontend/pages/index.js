@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { uploadToS3 } from '../services/file';
-import { userFiles } from '../services/file';
-import AuthRequired  from '../services/auth-required';
+import { uploadToS3, userFiles, deleteFile } from '../services/file';
+import AuthRequired from '../services/auth-required';
 import downloadFile from '../services/file';
 
 function UploadPage() {
@@ -29,9 +28,9 @@ function UploadPage() {
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
   
-  const handleDownloadFile = async (fileName) => {
+  const handleDownloadFile = async (fileName, type) => {
     try {
-      const response = await downloadFile(fileName);
+      const response = await downloadFile(fileName, type);
         
       if (response.ok) {        
         const blob = await response.blob();
@@ -43,29 +42,39 @@ function UploadPage() {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-      }
-      else{
-        console.log(response);
+      } else {
         throw new Error('Erro ao baixar o arquivo');
       }        
     } catch (error) {
       console.error('Erro ao baixar o arquivo:', error);
-      // Aqui você pode adicionar um alerta ou notificação para o usuário
       alert('Ocorreu um erro ao tentar baixar o arquivo. Por favor, tente novamente.');
-      // Pode ser útil limpar algum estado ou UI que indique que um download está em andamento
     }
   };
-  
+
+  const handleDeleteFile = async (fileId) => {
+    try {
+      const response = await deleteFile(fileId);
+      if (response.ok) {
+        const updatedFiles = await userFiles();
+        setUploadedFiles(updatedFiles);
+      } else {
+        throw new Error('Erro ao excluir o arquivo');
+      }
+    } catch (error) {
+      console.error('Erro ao excluir o arquivo:', error);
+      alert('Ocorreu um erro ao tentar excluir o arquivo. Por favor, tente novamente.');
+    }
+  };
+
   const handleFileSend = async() => {
     if (files.length === 0) {
       alert('Por favor, selecione pelo menos um arquivo para enviar.');
       return;
     }
-    // Aqui você faria uma requisição ao backend para enviar os arquivos
     console.log('Enviando arquivos:', files);
-    // Limpar a seleção de arquivos após o envio
     const response = await uploadToS3(files[0]);
     console.log(response);
+    setFiles([]);
   };
 
   return (
@@ -117,8 +126,9 @@ function UploadPage() {
                     <td className="px-4 py-4 whitespace-nowrap border-b border-gray-200 text-sm font-medium">
                       <button onClick={() => handleDownloadFile(file.fileName, 'original')} className="text-blue-600 hover:text-blue-900 mr-2">Original</button>
                       {file.status === "done" && 
-                      <button onClick={() => handleDownloadFile(file.pdf.fileName, 'pdf')} className="text-green-600 hover:text-green-900">PDF</button>
+                      <button onClick={() => handleDownloadFile(file.pdf.fileName, 'pdf')} className="text-green-600 hover:text-green-900 mr-2">PDF</button>
                       }
+                      <button onClick={() => handleDeleteFile(file.id)} className="text-red-600 hover:text-red-900">Excluir</button>
                     </td>
                   </tr>
                 ))}

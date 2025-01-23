@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { PrismaService } from 'prisma/prisma.service';
@@ -79,5 +79,53 @@ export class ConvertService {
       console.error(error.response);
       throw new InternalServerErrorException(`Erro ao converter arquivo: ${error.response?.data?.detail ?? error.message}`);
     }    
+  }
+
+  async deleteFile(fileId: number, userId: number):Promise<any>{
+    fileId = +fileId;
+    
+    const file = await this.prisma.file.findUnique({
+      where:{
+        id: fileId
+      }
+    });
+    
+    if (!file){
+      throw new NotFoundException("file not on database");
+    }
+    
+    if (!(await this.prisma.userFile.findUnique({
+      where:{
+        userId_fileId:{
+          userId: userId,
+          fileId: file.id
+        }
+      }
+    }))){
+      throw new UnauthorizedException("This file doesnt belongs to you");
+    }
+
+    await this.prisma.convertedFile.deleteMany({
+      where:{
+        fileId: fileId,
+      }
+    });
+
+    await this.prisma.userFile.delete({
+      where:{        
+        userId_fileId: {
+          fileId:  fileId,
+          userId: userId
+        }
+      }
+    });
+    
+    await this.prisma.file.delete({
+      where:{
+        id: fileId
+      }
+    });    
+
+    return await this.appService.deleteFileS3(file.fileName);
   }
 }
