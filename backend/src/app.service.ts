@@ -10,18 +10,22 @@ import { GetCallerIdentityCommand } from '@aws-sdk/client-sts';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { PrismaService } from 'prisma/prisma.service';
 import { Readable } from 'stream';
-import { Response } from 'express'
+import { Response } from 'express';
+import { RedisService } from './redis/redis.service';
 
 @Injectable()
 export class AppService {
   private readonly AWS_S3_BUCKET = 'office-conversion-files';
   private readonly AWS_REGION = 'us-east-2';
   private readonly logger = new Logger("External Connection");
-  
+
   private readonly s3: S3;
   private readonly sts: STS;
 
-  constructor() {
+  constructor(
+    private readonly redisClient: RedisService, 
+    private readonly prismaService: PrismaService,  
+  ) {
     const credentials = {
       accessKeyId: process.env.AWS_S3_ACCESS_KEY,
       secretAccessKey: process.env.AWS_S3_SECRET_ACCESS_KEY,
@@ -35,7 +39,7 @@ export class AppService {
     this.sts = new STS({
       credentials,
       region: this.AWS_REGION,
-    });    
+    });
   }
 
   async uploadFile(file: {
@@ -77,9 +81,9 @@ export class AppService {
 
     try {
       const result = await this.s3.send(new PutObjectCommand(params));
-      
+
       const location = `https://${bucket}.s3.${this.AWS_REGION}.amazonaws.com/${name}`;
-      
+
       return {
         Location: location,
         Key: name,
@@ -102,39 +106,49 @@ export class AppService {
   }
 
   async PreSignedUrlS3(filename: string, contentType: string, user: {userId: number, username: string}) {
-    await this.saveFileOnDatabase(filename, user.userId);
-    const command = new PutObjectCommand({ Bucket: this.AWS_S3_BUCKET, Key: filename, ContentType: contentType });
-    return {"url": await getSignedUrl(this.s3, command, { expiresIn: 60 })};
-  };  
+    if (await this.redisClient.isLimitReached(user.userId)){
+      throw new UnauthorizedException("User limit reached, try again tomorrow");
+    }
 
-  async getFileS3(filename: string, res: Response,  user: {userId: number, username: string}) {
-    const prisma = new PrismaService();
-    const file = await prisma.file.findUnique({
-      where:{
+    await this.redisClient.set(
+      user.userId.toString(),
+      (+(await this.redisClient.get(user.userId.toString())) - 1).toString(),
+      24*60*60
+    );
+
+    await this.saveFileOnDatabase(filename, user.userId);
+
+    const command = new PutObjectCommand({ Bucket: this.AWS_S3_BUCKET, Key: filename, ContentType: contentType });
+    return { "url": await getSignedUrl(this.s3, command, { expiresIn: 60 }) };
+  }
+
+  async getFileS3(filename: string, res: Response, user: {userId: number, username: string}) {
+    const file = await this.prismaService.file.findUnique({
+      where: {
         fileName: filename
       }
     });
-    
-    if (!file){
+
+    if (!file) {
       throw new NotFoundException("file not on database");
     }
-    
-    if (!(await prisma.userFile.findUnique({
-      where:{
-        userId_fileId:{
+
+    if (!(await this.prismaService.userFile.findUnique({
+      where: {
+        userId_fileId: {
           userId: user.userId,
           fileId: file.id
         }
       }
-    }))){
-      throw new UnauthorizedException("This file doesnt belongs to you");
+    }))) {
+      throw new UnauthorizedException("This file doesn't belong to you");
     }
 
     const command = new GetObjectCommand({
       Bucket: this.AWS_S3_BUCKET,
       Key: filename,
     });
-    const s3res = await this.s3.send(command);    
+    const s3res = await this.s3.send(command);
 
     res.set({
       'Content-Type': s3res.ContentType || 'application/octet-stream',
@@ -142,21 +156,19 @@ export class AppService {
     });
 
     (s3res.Body as Readable).pipe(res as unknown as NodeJS.WritableStream);
-  };  
+  }
 
-  private async saveFileOnDatabase(filename: string, userId: number): Promise<void>{
-    const prisma = new PrismaService();
-    
-    const fileDatabase = await prisma.file.create({
-      data:{
+  private async saveFileOnDatabase(filename: string, userId: number): Promise<void> {
+    const fileDatabase = await this.prismaService.file.create({
+      data: {
         fileExtension: filename.slice(filename.lastIndexOf(".")),
         fileName: filename,
         status: "awaiting",
       }
     });
 
-    await prisma.userFile.create({
-      data:{
+    await this.prismaService.userFile.create({
+      data: {
         userId: userId,
         fileId: fileDatabase.id
       }
@@ -165,7 +177,7 @@ export class AppService {
 
   async deleteFileS3(filename: string) {
     const command = new DeleteObjectCommand({ Bucket: this.AWS_S3_BUCKET, Key: filename });
-    const s3res = await this.s3.send(command);    
+    const s3res = await this.s3.send(command);
     return s3res;
-  };  
+  }
 }

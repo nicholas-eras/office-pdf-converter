@@ -7,17 +7,22 @@ import { UsersModule } from './users/users.module';
 import { ConvertModule } from './convert/convert.module';
 import { FileStatusMonitorGateway } from './convert/SocketIO/file-status-monitor-gateway';
 import { PrismaService } from 'prisma/prisma.service';
+import { RedisModule } from './redis/redis.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { TasksService } from './scheduler/scheduler.service';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     AuthModule,
     UsersModule,
     ConvertModule,
+    RedisModule
   ],
   controllers: [AppController],
-  providers: [AppService, FileStatusMonitorGateway, PrismaService],
+  providers: [AppService, FileStatusMonitorGateway, PrismaService, TasksService],
 })
 export class AppModule {}
