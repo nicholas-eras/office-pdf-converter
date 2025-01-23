@@ -12,7 +12,7 @@ export class PrismaService extends PrismaClient {
   async onModuleInit() {
     try {
       await this.$connect();
-      this.logger.log('Successfully connected database at 172.19.0.2');
+      this.logger.log('Successfully connected database at postgres');
     } catch (error) {
       this.logger.error(`Error connecting to the database ${error}`);
     }

@@ -12,7 +12,7 @@ from datetime import datetime
 app = FastAPI()
 sio = socketio.Client(logger=True)
 
-DATABASE_URL = "postgresql://postgres:postgres2024@172.19.0.2:5432/files_storage"
+DATABASE_URL = "postgresql://postgres:postgres2024@postgres:5432/files_storage"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

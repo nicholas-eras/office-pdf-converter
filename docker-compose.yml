@@ -8,4 +8,57 @@ services:
       - POSTGRES_PASSWORD=postgres2024
     ports:
       - 5433:5432
+    volumes:
+      - ./db/:/var/lib/postgresql/data
     restart: always
+  
+  backend:
+    image: backend
+    build:
+      context:  ./backend
+      dockerfile: ./backend.dockerfile
+    container_name: backend
+    ports:
+      - 3000:3000
+    volumes:
+      - ./backend/:/app/backend/
+    restart: always
+    depends_on:
+      - postgres
+  
+  converter:
+    image: converter
+    build:
+      context: ./office-converter
+      dockerfile: ./converter.dockerfile
+    container_name: converter
+    ports: 
+      - 8000:8000
+    volumes:
+      - ./office-converter/:/app/
+    restart: always
+    depends_on:
+      - backend
+
+  frontend:
+    image: frontend
+    build:
+      context: ./frontend
+      dockerfile: ./frontend.dockerfile
+    container_name: frontend
+    ports:
+      - 3001:3001
+    volumes:
+      - ./frontend/:/app/frontend/
+    restart: always
+    depends_on:
+      - backend
+
+  redis:
+    image: redis    
+    container_name: redis
+    ports:
+      - 6379:6379    
+    restart: always
+    depends_on:
+      - backend

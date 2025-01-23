@@ -85,7 +85,6 @@ export async function userFiles() {
     });
     if (!response.ok) {
       Router.push('/login');
-      throw new Error('Erro ao obter arquivo');
     }
 
     return await response.json();
