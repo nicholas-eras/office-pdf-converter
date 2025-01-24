@@ -51,7 +51,7 @@ export class RedisService {
   async restoreUsersLimit(): Promise<void>{
     const users = await this.prismaClient.user.findMany();
     users.forEach((user) => {
-      this.set(user.id.toString(), (3).toString(), 24*60*60);
+      this.set(user.id.toString(), (process.env.UPLOAD_LIMIT).toString(), 24*60*60);
     });
     return null
   }

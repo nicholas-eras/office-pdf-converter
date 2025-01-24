@@ -25,6 +25,13 @@ export class FileStatusMonitorGateway {
     this.server.emit('file-to-conversion-queue',this.files);
   }
 
+  @SubscribeMessage('notify-event')
+  handleNotifyEvent(client: any,payload: {event: string, data:any}) {    
+    this.server.emit(payload.event, payload.data);
+    console.log(`Success! ${payload.event}:${payload.data}`);
+    return `Success! ${payload.event}:${payload.data}`;
+  }
+
   @SubscribeMessage('update-file-status')
   async handleUpdateFilestatus(client: any, payload: {fileToConvert: string, status: string}): Promise<any> {
     this.files[payload.fileToConvert] = payload.status;

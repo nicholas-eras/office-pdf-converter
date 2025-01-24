@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { uploadToS3, userFiles, deleteFile } from '../services/file';
 import AuthRequired from '../services/auth-required';
 import downloadFile from '../services/file';
+import io from 'socket.io-client';
+
+const socket = io('http://localhost:3000');
 
 function UploadPage() {
   const [files, setFiles] = useState([]);
@@ -71,11 +74,11 @@ function UploadPage() {
       alert('Por favor, selecione pelo menos um arquivo para enviar.');
       return;
     }
-    console.log('Enviando arquivos:', files);
-    const response = await uploadToS3(files[0]);
-    console.log(response);
+    await uploadToS3(files[0]);
+    console.log("upload succes");
     setFiles([]);
-  };
+    socket.emit('notify-event', {event: "file-to-conversion-queue", data: files[0].name});
+  };  
 
   return (
     <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">

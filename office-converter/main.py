@@ -1,3 +1,4 @@
+from io import BytesIO
 from fastapi import FastAPI, HTTPException, UploadFile, Depends
 from pydantic import BaseModel
 import os
@@ -61,9 +62,8 @@ class FileRequest(BaseModel):
     fileName: str
     mimeType: str
 
-def convert_to_pdf(file_to_convert: str, output: str):
+async def convert_to_pdf(file_to_convert: str, output: str):
     cmd = ['libreoffice', '--headless', '--convert-to', 'pdf', file_to_convert, '--outdir', "converted_files/"]
-    from datetime import datetime
 
     sio.emit('update-file-status', {'fileToConvert': file_to_convert, 'status': 'processing'})
 
@@ -80,6 +80,20 @@ def convert_to_pdf(file_to_convert: str, output: str):
             raise HTTPException(detail="Server error process", status_code=500)
         else:
             sio.emit('update-file-status', {'fileToConvert': file_to_convert, 'status': 'done'})
+            
+            with open("converted_files/" + output, 'rb') as pdf_file:
+                pdf_content = pdf_file.read()
+            
+            upload_file = UploadFile(
+                filename=output, 
+                file=BytesIO(pdf_content), 
+                content_type='application/pdf'
+            )
+
+            s3_service = S3UploadService()
+
+            return await s3_service.upload_file(upload_file)
+    
     except Exception as e:
         print(e)
         raise HTTPException(detail="Server error conversion", status_code=500)
@@ -128,3 +142,58 @@ async def convert_file(item_id: int, file: UploadFile, db: Session = Depends(get
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
         raise HTTPException(status_code=500, detail=str(e))
+
+class S3UploadService:
+    def __init__(self):
+        self.AWS_S3_BUCKET = 'office-conversion-files'
+        self.AWS_REGION = 'us-east-2'
+        
+        self.s3_client = boto3.client(
+            's3',
+            aws_access_key_id=os.getenv('AWS_S3_ACCESS_KEY'),
+            aws_secret_access_key=os.getenv('AWS_S3_SECRET_ACCESS_KEY'),
+            region_name=self.AWS_REGION
+        )
+
+    async def upload_file(self, file: UploadFile):
+        try:
+            file_content = await file.read()
+            
+            return await self.s3_upload(
+                file=file_content, 
+                bucket=self.AWS_S3_BUCKET, 
+                name=file.filename, 
+                mimetype=file.content_type
+            )
+        except Exception as error:
+            print(f"Failed to upload file {file.filename}: {error}")
+            raise
+
+    async def s3_upload(
+        self, 
+        file: bytes, 
+        bucket: str, 
+        name: str, 
+        mimetype: str
+    ):
+
+        try:
+            self.s3_client.put_object(
+                Bucket=bucket,
+                Key=name,
+                Body=file,
+                ContentType=mimetype,
+                ACL='public-read',
+                ContentDisposition='inline'
+            )
+
+            location = f"https://{bucket}.s3.{self.AWS_REGION}.amazonaws.com/{name}"
+            
+            return {
+                "Location": location,
+                "Key": name,
+                "Bucket": bucket
+            }
+        except Exception as error:
+            print(f"S3 upload failed: {error}")
+            raise

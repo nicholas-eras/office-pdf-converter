@@ -24,7 +24,7 @@ export class AppService {
 
   constructor(
     private readonly redisClient: RedisService, 
-    private readonly prismaService: PrismaService,  
+    private readonly prismaService: PrismaService,
   ) {
     const credentials = {
       accessKeyId: process.env.AWS_S3_ACCESS_KEY,
@@ -116,7 +116,7 @@ export class AppService {
       24*60*60
     );
 
-    await this.saveFileOnDatabase(filename, user.userId);
+    await this.saveFileOnDatabase(filename, user.userId);    
 
     const command = new PutObjectCommand({ Bucket: this.AWS_S3_BUCKET, Key: filename, ContentType: contentType });
     return { "url": await getSignedUrl(this.s3, command, { expiresIn: 60 }) };
