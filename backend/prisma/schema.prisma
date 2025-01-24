@@ -40,7 +40,7 @@ model UserFile {
 model ConvertedFile {
   id        Int      @id @default(autoincrement())
   fileId    Int
-  fileName  String
+  fileName  String   @unique
   createdAt DateTime @default(now())
   file      File     @relation(fields: [fileId], references: [id])
 }

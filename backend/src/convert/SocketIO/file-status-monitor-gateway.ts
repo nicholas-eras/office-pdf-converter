@@ -15,29 +15,26 @@ export class FileStatusMonitorGateway {
 
   @SubscribeMessage('file-to-conversion-queue')
   handleFileMonitoring(client: any): any {
-    this.server.emit('file-to-conversion-queue',this.files);
-    return {"files": this.files};
+    return this.files;
   }
 
   @SubscribeMessage('upload-file-to-conversion')
   handleFileUploadToConversion(client: any, payload: {fileToConvert: string}): any {
     this.files[payload.fileToConvert]  =  'awaiting';
-    this.server.emit('file-to-conversion-queue',this.files);
   }
 
   @SubscribeMessage('notify-event')
   handleNotifyEvent(client: any,payload: {event: string, data:any}) {    
-    this.server.emit(payload.event, payload.data);
-    console.log(`Success! ${payload.event}:${payload.data}`);
+    this.files[payload.data]  =  'awaiting';
+    this.server.emit(payload.event, this.files);
     return `Success! ${payload.event}:${payload.data}`;
   }
 
   @SubscribeMessage('update-file-status')
   async handleUpdateFilestatus(client: any, payload: {fileToConvert: string, status: string}): Promise<any> {
     this.files[payload.fileToConvert] = payload.status;
-    this.server.emit('file-to-conversion-queue',this.files);
    
-    await this.prisma.file.update({      
+    const file = await this.prisma.file.update({      
         where:{
           fileName: payload.fileToConvert
         },
@@ -46,10 +43,17 @@ export class FileStatusMonitorGateway {
         }
       }
     );
+
+    await this.prisma.convertedFile.create({
+        data:{
+          fileName: payload.fileToConvert.slice(0, payload.fileToConvert.lastIndexOf(".")) + ".pdf",
+          fileId: file.id,
+        }
+      }
+    );
   }
 
   handleConnection(socket: Socket) {
-    this.server.emit('file-to-conversion-queue',this.files);
     this.logger.log(`Socket connected: ${socket.id}`);    
   }
 

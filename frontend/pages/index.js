@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { uploadToS3, userFiles, deleteFile } from '../services/file';
 import AuthRequired from '../services/auth-required';
-import downloadFile from '../services/file';
+import { downloadFile } from '../services/file';
 import io from 'socket.io-client';
 
 const socket = io('http://localhost:3000');

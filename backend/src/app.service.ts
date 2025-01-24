@@ -80,7 +80,7 @@ export class AppService {
     };
 
     try {
-      const result = await this.s3.send(new PutObjectCommand(params));
+      await this.s3.send(new PutObjectCommand(params));
 
       const location = `https://${bucket}.s3.${this.AWS_REGION}.amazonaws.com/${name}`;
 
@@ -123,13 +123,20 @@ export class AppService {
   }
 
   async getFileS3(filename: string, res: Response, user: {userId: number, username: string}) {
-    const file = await this.prismaService.file.findUnique({
+    const fileExtension = filename.slice(filename.indexOf("."));
+    
+    
+    const fileId = fileExtension != ".pdf" ?  await (await this.prismaService.file.findUnique({
       where: {
         fileName: filename
       }
-    });
+    })).id : await (await this.prismaService.convertedFile.findUnique({
+        where: {
+          fileName: filename
+        }
+      })).fileId;  
 
-    if (!file) {
+    if (!fileId) {
       throw new NotFoundException("file not on database");
     }
 
@@ -137,7 +144,7 @@ export class AppService {
       where: {
         userId_fileId: {
           userId: user.userId,
-          fileId: file.id
+          fileId: fileId
         }
       }
     }))) {

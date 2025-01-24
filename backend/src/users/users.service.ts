@@ -48,7 +48,6 @@ export class UsersService {
         },
       },
     });
-    
     const result = userFilesWithPdfs.map((userFile) => ({
       id: userFile.file.id,
       fileName: userFile.file.fileName,

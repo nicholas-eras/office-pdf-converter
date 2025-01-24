@@ -1,4 +1,3 @@
-from io import BytesIO
 from fastapi import FastAPI, HTTPException, UploadFile, Depends
 from pydantic import BaseModel
 import os
@@ -9,12 +8,15 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from datetime import datetime
+import boto3
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
 sio = socketio.Client(logger=True)
 
 DATABASE_URL = "postgresql://postgres:postgres2024@172.19.0.2:5432/files_storage"
-
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -53,6 +55,14 @@ def connect_socket():
         def disconnect():
             print("Disconnected from Socket.IO server")
 
+        @sio.on("file-to-conversion-queue")
+        def convertQueue(data):
+            if not data.keys():
+                print("no file to convert")
+            for file in data.keys():
+                fileRes = convert_upload_file(file)            
+                print(fileRes)
+
     except Exception as e:
         print(f"Socket.IO connection error: {str(e)}")
 
@@ -62,8 +72,9 @@ class FileRequest(BaseModel):
     fileName: str
     mimeType: str
 
-async def convert_to_pdf(file_to_convert: str, output: str):
-    cmd = ['libreoffice', '--headless', '--convert-to', 'pdf', file_to_convert, '--outdir', "converted_files/"]
+def convert_to_pdf(file_to_convert: str):
+    output = file_to_convert[:file_to_convert.rfind(".")] + ".pdf"
+    cmd = ['libreoffice', '--headless', '--convert-to', 'pdf', f"converted_files/{file_to_convert}", '--outdir', "converted_files/"]
 
     sio.emit('update-file-status', {'fileToConvert': file_to_convert, 'status': 'processing'})
 
@@ -82,38 +93,33 @@ async def convert_to_pdf(file_to_convert: str, output: str):
             sio.emit('update-file-status', {'fileToConvert': file_to_convert, 'status': 'done'})
             
             with open("converted_files/" + output, 'rb') as pdf_file:
-                pdf_content = pdf_file.read()
-            
-            upload_file = UploadFile(
-                filename=output, 
-                file=BytesIO(pdf_content), 
-                content_type='application/pdf'
-            )
+                pdf_content = pdf_file.read()            
 
             s3_service = S3UploadService()
 
-            return await s3_service.upload_file(upload_file)
+            s3_result = s3_service.upload_file(pdf_content, output)
+            
+            os.remove(f"converted_files/{file_to_convert}")
+            os.remove(f"converted_files/{output}")
+
+            return s3_result
     
     except Exception as e:
         print(e)
         raise HTTPException(detail="Server error conversion", status_code=500)
-    
-    finally:
-        if os.path.exists(file_to_convert):
-            os.remove(file_to_convert)
 
 @app.post("/convert-file/{item_id}")
-async def convert_file(item_id: int, file: UploadFile, db: Session = Depends(get_db)):
+def convert_file(item_id: int, file: UploadFile, db: Session = Depends(get_db)):
     fileName = file.filename[:file.filename.rfind('.')]
-    file_extension = file.filename[file.filename.rfind("."):]
     output = f"{fileName}.pdf"
     temp_file_path = f"{file.filename}"
     store_file = "converted_files/" + temp_file_path
+
     if os.path.exists(f"{os.getcwd()}/{output}"):
         raise HTTPException(status_code=404, detail="Arquivo já convertido.")
 
     try:
-        contents = await file.read()
+        contents = file.read()
         with open(temp_file_path, "wb") as f:
             f.write(contents)
 
@@ -122,7 +128,7 @@ async def convert_file(item_id: int, file: UploadFile, db: Session = Depends(get
 
         if sio.connected:
             sio.emit('upload-file-to-conversion', {'fileToConvert': output})
-            Thread(target=convert_to_pdf, args=(temp_file_path, output)).start()
+            convert_to_pdf(temp_file_path)
             
             new_item = ConvertedFile(
                 fileName= output,
@@ -148,35 +154,29 @@ class S3UploadService:
         self.AWS_S3_BUCKET = 'office-conversion-files'
         self.AWS_REGION = 'us-east-2'
         
+        self.aws_access_key = os.getenv('AWS_S3_ACCESS_KEY')
+        self.aws_secret_key = os.getenv('AWS_S3_SECRET_ACCESS_KEY')
+
         self.s3_client = boto3.client(
             's3',
-            aws_access_key_id=os.getenv('AWS_S3_ACCESS_KEY'),
-            aws_secret_access_key=os.getenv('AWS_S3_SECRET_ACCESS_KEY'),
+            aws_access_key_id=self.aws_access_key,
+            aws_secret_access_key=self.aws_secret_key,
             region_name=self.AWS_REGION
         )
 
-    async def upload_file(self, file: UploadFile):
-        try:
-            file_content = await file.read()
-            
-            return await self.s3_upload(
-                file=file_content, 
+    def upload_file(self, file: bytes, fileName: str):
+        try:            
+            return self.s3_upload(
+                file=file, 
                 bucket=self.AWS_S3_BUCKET, 
-                name=file.filename, 
-                mimetype=file.content_type
+                name=fileName, 
+                mimetype="application/pdf"
             )
         except Exception as error:
-            print(f"Failed to upload file {file.filename}: {error}")
+            print(f"Failed to upload file {fileName}: {error}")
             raise
 
-    async def s3_upload(
-        self, 
-        file: bytes, 
-        bucket: str, 
-        name: str, 
-        mimetype: str
-    ):
-
+    def s3_upload(self, file: bytes, bucket: str, name: str, mimetype: str):
         try:
             self.s3_client.put_object(
                 Bucket=bucket,
@@ -197,3 +197,40 @@ class S3UploadService:
         except Exception as error:
             print(f"S3 upload failed: {error}")
             raise
+
+    def download_from_s3(self, key: str):
+        try:
+            response = self.s3_client.get_object(Bucket=self.AWS_S3_BUCKET, Key=key)
+            file_content = response['Body'].read()
+
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            converted_files_dir = os.path.join(current_dir, "converted_files")
+
+            os.makedirs(converted_files_dir, exist_ok=True)
+
+            file_path = os.path.join(converted_files_dir, os.path.basename(key))
+
+            with open(file_path, "wb") as file:
+                file.write(file_content)
+
+            return {
+                "FilePath": file_path,
+                "Key": key,
+                "Bucket": self.AWS_S3_BUCKET
+            }
+        except Exception as error:
+            print(f"Failed to download from S3: {error}")
+            raise
+
+def convert_upload_file(fileName: str):
+    print(f"Converging {fileName}")
+    s3_service = S3UploadService()
+    download_result = s3_service.download_from_s3(fileName)
+    convert_to_pdf(fileName)
+    
+    if os.path.exists(download_result["FilePath"]):
+        os.remove(download_result["FilePath"])
+    if os.path.exists(f"converted_files/{fileName}"):
+        os.remove(f"converted_files/{fileName}")
+    print(fileName, "Converted")
+    return {"status": "success"}
