@@ -9,7 +9,7 @@ export class RedisService {
   private redisClient: Redis;
   
   constructor(private readonly prismaClient: PrismaService) {
-    this.redisClient = new Redis(); 
+    this.redisClient = new Redis(process.env.REDIS_URL || 'redis://redis:6379'); 
   }
 
   async set(key: string, value: string, ttl?: number): Promise<void> {
@@ -27,8 +27,8 @@ export class RedisService {
   async verifyConnection(): Promise<void>{
     try {
       await this.redisClient.ping();      
-      const clientInfo = await this.redisClient.call('CLIENT', ['LIST']) as string;
 
+      const clientInfo = await this.redisClient.call('CLIENT', ['LIST']) as string;
       const clientAddr = clientInfo
         .split('\n')
         .find(line => line.includes('id='))

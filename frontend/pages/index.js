@@ -1,27 +1,64 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { uploadToS3, userFiles, deleteFile } from '../services/file';
 import AuthRequired from '../services/auth-required';
 import { downloadFile } from '../services/file';
 import io from 'socket.io-client';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';  // Import the CSS for styling
 
-const socket = io('http://localhost:3000');
+const socket = io('http://localhost:3000', );
 
 function UploadPage() {
-  const [files, setFiles] = useState([]);
+  const [file, setFile] = useState([]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const filesPerPage = 5;
+  const maxFileSize = 10;
+  const maxFileSizeMb = maxFileSize * 1000 * 1000;
+  const acceptFiles = [
+    // Arquivos do Office
+    ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".odt", ".ods", ".odp", ".rtf", ".csv", ".txt", ".pdf",
+    
+    // Imagens
+    ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".svg", ".webp"
+  ];
 
   const handleFileUpload = (event) => {
-    const fileList = Array.from(event.target.files);
-    setFiles(fileList);
+    if (event.target.files[0].size >= maxFileSizeMb){
+      toast.error(`Arquivo não deve possuir mais do que ${maxFileSize}Mb`, { position: "top-right" });
+      setFile(null);
+      event.target.value = null;
+      return;
+    }
+    const fileExtension = `.${event.target.files[0].name.split(".").pop().toLowerCase()}`;
+    if (!acceptFiles.includes(fileExtension)){
+      toast.error(`Extensão de arquivo ${fileExtension} não suportada.`);
+      setFile(null);
+      event.target.value = null;
+      return;
+    }  
+    setFile(event.target.files[0]);
   };
 
-  useEffect(() => {
-    const fetchFilesStatus = async () => {
-      const filesFromBackend = await userFiles();      
+  const resetInput = () =>{
+    const input = document.getElementById("file-upload");
+    input.value = null;
+  }
+
+  const fetchFilesStatus = async () => {
+    try {
+      const filesFromBackend = await userFiles();
       setUploadedFiles(filesFromBackend);
-    };
+    } catch (error) {
+      if (error.message === 'Unauthorized') {
+        handleAuthError();
+      } else {
+        toast.error('Erro ao carregar arquivos.', { position: "top-right" });
+      }
+    }
+  };
+
+  useEffect(() => {    
     fetchFilesStatus();
   }, []);
 
@@ -44,13 +81,13 @@ function UploadPage() {
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        document.body.removeChild(a);        
       } else {
         throw new Error('Erro ao baixar o arquivo');
       }        
     } catch (error) {
       console.error('Erro ao baixar o arquivo:', error);
-      alert('Ocorreu um erro ao tentar baixar o arquivo. Por favor, tente novamente.');
+      toast.error('Ocorreu um erro ao tentar baixar o arquivo. Por favor, tente novamente.', { position: "top-right" });
     }
   };
 
@@ -60,24 +97,48 @@ function UploadPage() {
       if (response.ok) {
         const updatedFiles = await userFiles();
         setUploadedFiles(updatedFiles);
+        toast.success('Arquivo excluído com sucesso!', { position: "top-right" });
       } else {
         throw new Error('Erro ao excluir o arquivo');
       }
     } catch (error) {
       console.error('Erro ao excluir o arquivo:', error);
-      alert('Ocorreu um erro ao tentar excluir o arquivo. Por favor, tente novamente.');
+      if (error.message === 'Unauthorized') {
+        handleAuthError();
+      } else {
+        toast.error('Ocorreu um erro ao tentar excluir o arquivo. Por favor, tente novamente.', { position: "top-right" });
+      }
     }
   };
 
+  // Função para lidar com erros de autenticação
+  const handleAuthError = () => {
+    toast.error('Você precisa fazer login novamente.', { 
+      position: "top-right",
+      onClose: () => {
+        window.location.href = '/login'; // Redireciona para a página de login
+      }
+    });
+  };
+
   const handleFileSend = async() => {
-    if (files.length === 0) {
-      alert('Por favor, selecione pelo menos um arquivo para enviar.');
+    if (!file) {
+      toast.warn('Por favor, selecione pelo menos um arquivo para enviar.', { position: "top-right" });
       return;
     }
-    await uploadToS3(files[0]);
-    console.log("upload succes");
-    setFiles([]);
-    socket.emit('notify-event', {event: "file-to-conversion-queue", data: files[0].name});
+    try {
+      await uploadToS3(file);
+      toast.success('Arquivo enviado com sucesso!', { position: "top-right" });
+      setFile(null);
+      socket.emit('notify-event', {event: "file-to-conversion-queue", data: file.name});
+      fetchFilesStatus();
+    } catch (error) {
+      if (error.message === 'Unauthorized') {
+        handleAuthError();
+      } else {
+        toast.error('Erro ao enviar o arquivo.', { position: "top-right" });
+      }
+    }
   };  
 
   return (
@@ -90,13 +151,22 @@ function UploadPage() {
             <label htmlFor="file-upload" className="block mb-2 text-sm font-medium text-gray-700">
               Selecione arquivos para upload
             </label>
-            <input 
-              id="file-upload"
-              type="file" 
-              onChange={handleFileUpload}
-              multiple
-              className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
+            <div className="relative w-full flex items-center">
+              <input 
+                id="file-upload"
+                type="file" 
+                onChange={handleFileUpload}
+                accept={acceptFiles.join(",")}
+                className="block w-[calc(100%-40px)] text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              <button
+                type="button"
+                onClick={resetInput}
+                className="absolute right-2 text-red-500 hover:text-red-700"
+              >
+                ❌
+              </button>
+            </div>
             <button 
               onClick={handleFileSend}
               className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full">
@@ -156,6 +226,7 @@ function UploadPage() {
           </div>
         </div>
       </div>
+      <ToastContainer />
     </div>
   );
 }

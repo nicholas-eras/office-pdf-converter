@@ -1,8 +1,7 @@
 from fastapi import FastAPI, HTTPException, UploadFile, Depends
 from pydantic import BaseModel
-import os
+import os, time
 import subprocess
-from threading import Thread
 import socketio
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
@@ -16,7 +15,7 @@ load_dotenv()
 app = FastAPI()
 sio = socketio.Client(logger=True)
 
-DATABASE_URL = "postgresql://postgres:postgres2024@172.19.0.2:5432/files_storage"
+DATABASE_URL = "postgresql://postgres:postgres2024@postgres:5432/files_storage"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -39,32 +38,37 @@ class ConvertedFile(Base):
 Base.metadata.create_all(bind=engine)
 
 def connect_socket():
-    try:
-        print("Connecting to Socket.IO server...")
-        sio.connect('http://localhost:3000', transports=['websocket'])
-
-        @sio.event
-        def connect():
+    while True:  # Loop infinito para tentar reconectar
+        try:
+            print("Connecting to Socket.IO server...")
+            sio.connect('http://backend:3000', transports=['websocket'])
             print("Connected to Socket.IO server!")
+            break 
 
-        @sio.event
-        def connect_error(data):
-            print(f"Connection error: {data}")
+        except Exception as e:
+            print(f"Socket.IO connection error: {str(e)}")
+            print("Reconnecting in 1 seconds...")
+            time.sleep(1)
 
-        @sio.event
-        def disconnect():
-            print("Disconnected from Socket.IO server")
+@sio.event
+def connect():
+    print("Connected to Socket.IO server!")
 
-        @sio.on("file-to-conversion-queue")
-        def convertQueue(data):
-            if not data.keys():
-                print("no file to convert")
-            for file in data.keys():
-                fileRes = convert_upload_file(file)            
-                print(fileRes)
+@sio.event
+def connect_error(data):
+    print(f"Connection error: {data}")
 
-    except Exception as e:
-        print(f"Socket.IO connection error: {str(e)}")
+@sio.event
+def disconnect():
+    print("Disconnected from Socket.IO server")
+
+@sio.on("file-to-conversion-queue")
+def convertQueue(data):
+    print(data)
+    if not data.keys():
+        print("no file to convert")
+    for file in data.keys():
+        convert_upload_file(file)               
 
 connect_socket()
 
@@ -96,11 +100,14 @@ def convert_to_pdf(file_to_convert: str):
                 pdf_content = pdf_file.read()            
 
             s3_service = S3UploadService()
-
+            print(f"converted_files/{output}")
+            print("\n"*10) 
             s3_result = s3_service.upload_file(pdf_content, output)
             
-            os.remove(f"converted_files/{file_to_convert}")
-            os.remove(f"converted_files/{output}")
+            if os.path.exists(f"converted_files/{file_to_convert}"):
+                os.remove(f"converted_files/{file_to_convert}")
+            if os.path.exists(f"converted_files/{output}"):
+                os.remove(f"converted_files/{output}")
 
             return s3_result
     
@@ -114,10 +121,7 @@ def convert_file(item_id: int, file: UploadFile, db: Session = Depends(get_db)):
     output = f"{fileName}.pdf"
     temp_file_path = f"{file.filename}"
     store_file = "converted_files/" + temp_file_path
-
-    if os.path.exists(f"{os.getcwd()}/{output}"):
-        raise HTTPException(status_code=404, detail="Arquivo já convertido.")
-
+    
     try:
         contents = file.read()
         with open(temp_file_path, "wb") as f:

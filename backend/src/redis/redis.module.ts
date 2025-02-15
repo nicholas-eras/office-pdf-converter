@@ -11,7 +11,7 @@ import { PrismaService } from 'prisma/prisma.service';
     {
       provide: 'REDIS_CLIENT',
       useFactory: () => {
-        const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+        const redisUrl = process.env.REDIS_URL || 'redis://redis:6379';
         return new Redis(redisUrl);
       },
     },
