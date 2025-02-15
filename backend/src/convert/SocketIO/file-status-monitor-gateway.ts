@@ -33,11 +33,11 @@ export class FileStatusMonitorGateway {
   @SubscribeMessage('update-file-status')
   async handleUpdateFilestatus(client: any, payload: {fileToConvert: string, status: string}): Promise<any> {
     this.files[payload.fileToConvert] = payload.status;
+ 
+    this.server.emit("file-to-conversion-queue", this.files);
     if (payload.status === "done"){
       delete this.files[payload.fileToConvert];
-      this.server.emit("file-to-conversion-queue", this.files);
     };
-
     const file = await this.prisma.file.update({      
         where:{
           fileName: payload.fileToConvert

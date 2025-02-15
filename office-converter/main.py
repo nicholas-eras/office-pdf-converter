@@ -63,11 +63,12 @@ def disconnect():
     print("Disconnected from Socket.IO server")
 
 @sio.on("file-to-conversion-queue")
-def convertQueue(data):
-    print(data)
+def convertQueue(data):    
     if not data.keys():
         print("no file to convert")
-    for file in data.keys():
+    for file, status in data.items():
+        if status != "awaiting":
+            return
         convert_upload_file(file)               
 
 connect_socket()
@@ -92,16 +93,15 @@ def convert_to_pdf(file_to_convert: str):
 
         if process.stderr != '':
             print(process)
+            print("\n"*5)
             raise HTTPException(detail="Server error process", status_code=500)
-        else:
+        else:            
             sio.emit('update-file-status', {'fileToConvert': file_to_convert, 'status': 'done'})
             
             with open("converted_files/" + output, 'rb') as pdf_file:
                 pdf_content = pdf_file.read()            
 
-            s3_service = S3UploadService()
-            print(f"converted_files/{output}")
-            print("\n"*10) 
+            s3_service = S3UploadService()           
             s3_result = s3_service.upload_file(pdf_content, output)
             
             if os.path.exists(f"converted_files/{file_to_convert}"):
@@ -113,6 +113,7 @@ def convert_to_pdf(file_to_convert: str):
     
     except Exception as e:
         print(e)
+        print("\n"*5)
         raise HTTPException(detail="Server error conversion", status_code=500)
 
 @app.post("/convert-file/{item_id}")
@@ -227,7 +228,6 @@ class S3UploadService:
             raise
 
 def convert_upload_file(fileName: str):
-    print(f"Converging {fileName}")
     s3_service = S3UploadService()
     download_result = s3_service.download_from_s3(fileName)
     convert_to_pdf(fileName)
@@ -236,5 +236,4 @@ def convert_upload_file(fileName: str):
         os.remove(download_result["FilePath"])
     if os.path.exists(f"converted_files/{fileName}"):
         os.remove(f"converted_files/{fileName}")
-    print(fileName, "Converted")
     return {"status": "success"}
