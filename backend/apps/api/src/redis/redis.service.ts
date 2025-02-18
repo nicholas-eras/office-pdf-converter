@@ -43,7 +43,8 @@ export class RedisService {
       await this.restoreUsersLimit();
       this.logger.debug("Done setting user's limit file upload.");
       
-    } catch (error) {            
+    } catch (error) {      
+      console.log(error)      ;
       throw new Error('Invalid Redis credentials');      
     }
   }
@@ -53,10 +54,15 @@ export class RedisService {
     users.forEach((user) => {
       this.set(user.id.toString(), (process.env.UPLOAD_LIMIT).toString(), 24*60*60);
     });
-    return null
+    await this.numberOfFilesUploadLimit();
+    return null;
   }
 
   async isLimitReached(userId: number): Promise<boolean>{    
     return !(+(await this.get(userId.toString())) > 0);
   }
+
+  private async numberOfFilesUploadLimit():Promise<void>{
+    await this.set("numberFiles", "30");
+  };
 }

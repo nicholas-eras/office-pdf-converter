@@ -12,11 +12,10 @@ import { PrismaService } from 'prisma/prisma.service';
 import { Readable } from 'stream';
 import { Response } from 'express';
 import { RedisService } from './redis/redis.service';
+import { RabbitMqService } from './rabbitmq/rabbitmq.service';
 
 @Injectable()
 export class AppService {
-  private readonly AWS_S3_BUCKET = 'office-conversion-files';
-  private readonly AWS_REGION = 'us-east-2';
   private readonly logger = new Logger("External Connection");
 
   private readonly s3: S3;
@@ -25,6 +24,7 @@ export class AppService {
   constructor(
     private readonly redisClient: RedisService, 
     private readonly prismaService: PrismaService,
+    private readonly rabbitmqService: RabbitMqService
   ) {
     const credentials = {
       accessKeyId: process.env.AWS_S3_ACCESS_KEY,
@@ -33,12 +33,12 @@ export class AppService {
 
     this.s3 = new S3({
       credentials,
-      region: this.AWS_REGION,
+      region: process.env.AWS_REGION,
     });
 
     this.sts = new STS({
       credentials,
-      region: this.AWS_REGION,
+      region: process.env.AWS_REGION,
     });
   }
 
@@ -54,7 +54,7 @@ export class AppService {
     try {
       return await this.s3Upload(
         file.buffer,
-        this.AWS_S3_BUCKET,
+        process.env.AWS_S3_BUCKET,
         file.originalname,
         file.mimetype,
       );
@@ -82,7 +82,7 @@ export class AppService {
     try {
       await this.s3.send(new PutObjectCommand(params));
 
-      const location = `https://${bucket}.s3.${this.AWS_REGION}.amazonaws.com/${name}`;
+      const location = `https://${bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${name}`;
 
       return {
         Location: location,
@@ -116,10 +116,19 @@ export class AppService {
       24*60*60
     );
 
+    if (await this.filesUploadLimitReached()){
+      throw new UnauthorizedException("Não permitido por hj");
+    }
+
     await this.saveFileOnDatabase(filename, user.userId);    
 
-    const command = new PutObjectCommand({ Bucket: this.AWS_S3_BUCKET, Key: filename, ContentType: contentType });
+    const command = new PutObjectCommand({ Bucket: process.env.AWS_S3_BUCKET, Key: filename, ContentType: contentType });
     return { "url": await getSignedUrl(this.s3, command, { expiresIn: 60 }) };
+  }
+
+  private async filesUploadLimitReached():Promise<boolean>{
+    const numberFiles = await this.prismaService.file.count();
+    return +numberFiles >= 30;
   }
 
   async getFileS3(filename: string, res: Response, user: {userId: number, username: string}) {
@@ -152,7 +161,7 @@ export class AppService {
     }
 
     const command = new GetObjectCommand({
-      Bucket: this.AWS_S3_BUCKET,
+      Bucket: process.env.AWS_S3_BUCKET,
       Key: filename,
     });
     const s3res = await this.s3.send(command);
@@ -183,8 +192,16 @@ export class AppService {
   }
 
   async deleteFileS3(filename: string) {
-    const command = new DeleteObjectCommand({ Bucket: this.AWS_S3_BUCKET, Key: filename });
+    const command = new DeleteObjectCommand({ Bucket: process.env.AWS_S3_BUCKET, Key: filename });
     const s3res = await this.s3.send(command);
     return s3res;
+  }
+
+  defaultNestJS():string{
+    this.rabbitmqService.client.emit('default-nestjs-rmq', {
+      message: "mensagem"
+    }); // fire and forget
+    // this.rabbitmqService.clientRMQ.send('', {}).pipe(); //rcp, tipo tcp q precisa de feedback
+    return "oi";
   }
 }

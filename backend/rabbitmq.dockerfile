@@ -9,4 +9,4 @@ RUN npm install
 COPY . . 
 RUN npm run build
 
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:dev api"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:dev rabbitmq"]

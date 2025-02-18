@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "jwt-decode": "^4.0.0",
     "mini-css-extract-plugin": "^2.9.2",
     "next": "15.1.5",
     "react": "^19.0.0",

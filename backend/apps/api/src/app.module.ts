@@ -10,6 +10,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { RedisModule } from './redis/redis.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TasksService } from './scheduler/scheduler.service';
+import { RabbitMqModule } from './rabbitmq/rabbitmq.module';
 
 @Module({
   imports: [
@@ -20,7 +21,8 @@ import { TasksService } from './scheduler/scheduler.service';
     AuthModule,
     UsersModule,
     ConvertModule,
-    RedisModule
+    RedisModule,
+    RabbitMqModule
   ],
   controllers: [AppController],
   providers: [AppService, FileStatusMonitorGateway, PrismaService, TasksService],

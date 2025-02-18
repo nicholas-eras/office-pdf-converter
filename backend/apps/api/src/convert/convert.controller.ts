@@ -1,11 +1,11 @@
 import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, Req, Get, StreamableFile, Body, Res, Param, Delete } from '@nestjs/common';
 import { ConvertService } from './convert.service';
 import { FileInterceptor } from '@nestjs/platform-express/multer';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Request } from 'express';
 import { createReadStream } from 'fs';
 import { join } from 'path';
-import { AppService } from 'src/app.service';
+import { AppService } from '../app.service';
 import { Response } from 'express'
 
 @Controller('file')

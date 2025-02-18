@@ -3,15 +3,29 @@ import { SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/web
 import { PrismaService } from 'prisma/prisma.service';
 import { Server, Socket } from 'socket.io';
 
+interface Files{
+  fileName: string,
+  status: string,  
+}
+
+interface UserFiles{
+  [userId: number] : Files[];
+}
+
 @WebSocketGateway({ cors: { origin: '*' } })
 export class FileStatusMonitorGateway {  
   constructor(private readonly prisma: PrismaService) {}
-  private files = {};
-  
+  private files:UserFiles = {};
+
+  deleteFile = (userId:number, fileName:string) => {
+    this.files[userId] = this.files[userId].filter((files: Files) =>files.fileName != fileName);
+    this.server.emit("file-to-conversion-queue", this.files);
+  }
+
   private logger = new Logger('External Connection');   
   
   @WebSocketServer()
-  server: Server;
+  server: Server;  
 
   @SubscribeMessage('file-to-conversion-queue')
   handleFileMonitoring(client: any): any {
@@ -24,7 +38,7 @@ export class FileStatusMonitorGateway {
   }
 
   @SubscribeMessage('notify-event')
-  handleNotifyEvent(client: any,payload: {event: string, data:any}) {    
+  handleNotifyEvent(client: any, payload: {event: string, data:string}) {        
     this.files[payload.data]  =  'awaiting';
     this.server.emit(payload.event, this.files);
     return `Success! ${payload.event}:${payload.data}`;
@@ -56,7 +70,7 @@ export class FileStatusMonitorGateway {
       }
     );
   }
-
+  
   handleConnection(socket: Socket) {
     this.logger.log(`Socket connected: ${socket.id}`);    
   }
@@ -64,5 +78,4 @@ export class FileStatusMonitorGateway {
   handleDisconnect(socket: Socket) {
     this.logger.log(`Socket disconnected: ${socket.id}`);    
   }
-
 }

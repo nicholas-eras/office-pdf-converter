@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { RedisService } from 'src/redis/redis.service';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class TasksService {
@@ -13,5 +13,5 @@ export class TasksService {
     this.logger.debug("Updating user's limit file upload.");
     await this.redisService.restoreUsersLimit();
     this.logger.debug("Done setting user's limit file upload.");
-  }
+  }  
 }

@@ -2,14 +2,16 @@ import { Injectable, InternalServerErrorException, NotFoundException, Unauthoriz
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { PrismaService } from 'prisma/prisma.service';
-import { AppService } from 'src/app.service';
+import { AppService } from '../app.service';
+import { FileStatusMonitorGateway } from './SocketIO/file-status-monitor-gateway';
 
 @Injectable()
 export class ConvertService {
   constructor(
     private readonly httpService: HttpService, 
     private readonly prisma: PrismaService,
-    private readonly appService: AppService
+    private readonly appService: AppService,
+    private readonly fileStatusMonitorGateway: FileStatusMonitorGateway,
   ){}
 
   async convert(file: Express.Multer.File, user: {userId: number, username: string}): Promise<{
@@ -124,7 +126,9 @@ export class ConvertService {
       where:{
         id: fileId
       }
-    });    
+    });
+
+    this.fileStatusMonitorGateway.deleteFile(0, file.fileName);
 
     return await this.appService.deleteFileS3(file.fileName);
   }

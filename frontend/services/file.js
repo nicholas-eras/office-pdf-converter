@@ -127,3 +127,19 @@ export async function deleteFile(fileId) {
     console.error('Erro ao deletar o arquivo:', error);    
   }
 };
+
+export async function getFile(fileId) {
+  try {   
+    const token = localStorage.getItem('token');   
+    const response = await fetch('http://localhost:3000/file/' + fileId, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`, 
+      },      
+    });
+    return response   
+  } catch (error) {
+    console.error('Erro ao obter o arquivo:', error);    
+  }
+}
