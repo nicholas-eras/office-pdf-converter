@@ -1,11 +1,12 @@
 
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from 'prisma/prisma.service';
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../../../prisma/prisma.service';
 import Redis from 'ioredis';
+import { ColoredLogger } from '../utils/colored-logger';
 
 @Injectable()
 export class RedisService {
-  private readonly logger = new Logger("External Connection");  
+  private readonly logger = new ColoredLogger("External Connection");  
   private redisClient: Redis;
   
   constructor(private readonly prismaClient: PrismaService) {

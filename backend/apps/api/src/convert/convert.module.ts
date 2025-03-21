@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConvertService } from './convert.service';
 import { ConvertController } from './convert.controller';
 import { HttpModule } from '@nestjs/axios';
-import { PrismaService } from 'prisma/prisma.service';
+import { PrismaService } from '../../../../prisma/prisma.service';
 import { AppService } from '../app.service';
 import { FileStatusMonitorGateway } from './SocketIO/file-status-monitor-gateway';
 import { RabbitMqService } from '../rabbitmq/rabbitmq.service';

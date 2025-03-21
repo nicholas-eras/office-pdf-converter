@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { S3 } from '@aws-sdk/client-s3';
 import { 
   PutObjectCommand, 
@@ -8,15 +8,15 @@ import {
 import { STS } from '@aws-sdk/client-sts';
 import { GetCallerIdentityCommand } from '@aws-sdk/client-sts';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { PrismaService } from 'prisma/prisma.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 import { Readable } from 'stream';
 import { Response } from 'express';
 import { RedisService } from './redis/redis.service';
-import { RabbitMqService } from './rabbitmq/rabbitmq.service';
+import { ColoredLogger } from './utils/colored-logger';
 
 @Injectable()
 export class AppService {
-  private readonly logger = new Logger("External Connection");
+  private readonly logger = new ColoredLogger("External Connection");
 
   private readonly s3: S3;
   private readonly sts: STS;
@@ -24,7 +24,6 @@ export class AppService {
   constructor(
     private readonly redisClient: RedisService, 
     private readonly prismaService: PrismaService,
-    private readonly rabbitmqService: RabbitMqService
   ) {
     const credentials = {
       accessKeyId: process.env.AWS_S3_ACCESS_KEY,
@@ -195,13 +194,5 @@ export class AppService {
     const command = new DeleteObjectCommand({ Bucket: process.env.AWS_S3_BUCKET, Key: filename });
     const s3res = await this.s3.send(command);
     return s3res;
-  }
-
-  defaultNestJS():string{
-    this.rabbitmqService.client.emit('default-nestjs-rmq', {
-      message: "mensagem"
-    }); // fire and forget
-    // this.rabbitmqService.clientRMQ.send('', {}).pipe(); //rcp, tipo tcp q precisa de feedback
-    return "oi";
   }
 }

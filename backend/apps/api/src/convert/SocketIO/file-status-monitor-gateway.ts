@@ -1,7 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
-import { PrismaService } from 'prisma/prisma.service';
+import { PrismaService } from '../../../../../prisma/prisma.service';
 import { Server, Socket } from 'socket.io';
+import { ColoredLogger } from '../../utils/colored-logger';
 
 interface Files{
   fileName: string,
@@ -22,7 +23,7 @@ export class FileStatusMonitorGateway {
     this.server.emit("file-to-conversion-queue", this.files);
   }
 
-  private logger = new Logger('External Connection');   
+  private logger = new ColoredLogger('External Connection');   
   
   @WebSocketServer()
   server: Server;  

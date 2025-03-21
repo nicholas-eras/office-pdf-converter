@@ -6,14 +6,11 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
   imports: [
     ClientsModule.register([
       {
-        name: 'RABBITMQ_SERVICE',
+        name: 'FILES_SERVICE',
         transport: Transport.RMQ,
         options: {
           urls: [process.env.RABBIT_URL],
-          noAck: true,          
-          queueOptions: {
-            durable: false
-          },
+          queue: "files-queue",
         },
       },
     ]),

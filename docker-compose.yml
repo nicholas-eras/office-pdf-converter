@@ -32,20 +32,21 @@ services:
     restart: always
     depends_on:
       - postgres
+      - rabbitmq
     networks:
       - mynetwork
 
-  rabbitmqService:
-    image: rabbitmq-service
+  rabbitmqConsumer:
+    image: rabbitmq-consumer
     build:
       context: ./backend
       dockerfile: ./rabbitmq.dockerfile
-    container_name: rabbitm-service
+    container_name: rabbitmq-consumer
     env_file:
       - .env
     environment:
-      - DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
-      - RABBIT_URL="amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672"
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - RABBIT_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
     ports:
       - 3002:3000
     volumes:
@@ -53,6 +54,7 @@ services:
     restart: always
     depends_on:
       - postgres
+      - rabbitmq
     networks:
       - mynetwork
 

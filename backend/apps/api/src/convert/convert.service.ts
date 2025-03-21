@@ -1,7 +1,7 @@
 import { Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { PrismaService } from 'prisma/prisma.service';
+import { PrismaService } from '../../../../prisma/prisma.service';
 import { AppService } from '../app.service';
 import { FileStatusMonitorGateway } from './SocketIO/file-status-monitor-gateway';
 

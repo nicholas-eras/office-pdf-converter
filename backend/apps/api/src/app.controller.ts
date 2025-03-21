@@ -1,12 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
+import { RabbitMqService } from './rabbitmq/rabbitmq.service';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(private readonly rabbitMqService: RabbitMqService) {}
 
   @Get("default-nest")
-  defaultNest(): string {
-    return this.appService.defaultNestJS();
-  }  
+  triggerEvent() {
+    return this.rabbitMqService.sendMessage();
+  }
 }

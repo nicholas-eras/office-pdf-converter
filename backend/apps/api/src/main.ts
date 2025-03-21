@@ -1,8 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { Logger } from '@nestjs/common';
 import { RedisService } from './redis/redis.service';
 import { AppService } from './app.service';
+import { ColoredLogger } from './utils/colored-logger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -15,7 +15,7 @@ async function bootstrap() {
 
   await app.listen(3000);
 
-  const logger = new Logger('External Connection');
+  const logger = new ColoredLogger('External Connection');
   logger.log('Server running on port 3000...');
 
   const appService = app.get(AppService);

@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { RedisService } from '../redis/redis.service';
+import { ColoredLogger } from '../utils/colored-logger';
 
 @Injectable()
 export class TasksService {
-  private readonly logger = new Logger('Scheduler');
+  private readonly logger = new ColoredLogger('Scheduler');
 
   constructor(private readonly redisService: RedisService) {}
 
