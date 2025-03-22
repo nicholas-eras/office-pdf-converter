@@ -11,6 +11,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
         options: {
           urls: [process.env.RABBIT_URL],
           queue: "files-queue",
+          noAck: true
         },
       },
     ]),

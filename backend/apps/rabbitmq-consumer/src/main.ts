@@ -10,6 +10,8 @@ async function bootstrap() {
       options: {
         urls: [process.env.RABBIT_URL],
         queue: "files-queue",
+        noAck: false,
+        prefetchCount: 1
       },
     }
   );

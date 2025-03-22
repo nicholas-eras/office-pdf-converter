@@ -28,8 +28,15 @@ export class FileStatusMonitorGateway {
   @WebSocketServer()
   server: Server;  
 
+  @SubscribeMessage('check-event')
+  handleSDEvent(client: Socket, payload: any) {
+    this.logger.log(`Client: ${client.id} | Payload: ${JSON.stringify(payload)}`);
+    this.server.emit("check-event", client.id + " sent: " + payload);
+  }
+
   @SubscribeMessage('file-to-conversion-queue')
-  handleFileMonitoring(client: any): any {
+  handleFileMonitoring(client: any, fileName: string): any {
+    this.server.emit("file-to-conversion-queue", {[fileName]: "awaiting"});
     return this.files;
   }
 

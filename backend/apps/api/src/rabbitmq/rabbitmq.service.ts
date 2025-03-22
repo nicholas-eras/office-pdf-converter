@@ -17,13 +17,13 @@ export class RabbitMqService implements OnModuleInit {
     }
   }
 
-  sendMessage(): string {
+  sendMessage(fileName: string): Record<any, any> {
     try {
-      this.client.emit('default-nestjs-rmq', { message: 'mensagem' });
-      return 'oi';
+      const response = this.client.send('default-nestjs-rmq', { fileName });
+      return response;
     } catch (error) {
-      this.logger.error('❌ Failed to send message to RabbitMQ:', error.message);
-      return 'error sending message';
+      this.logger.error('Failed to send message to RabbitMQ:', error.message);
+      return { status: 'error sending message' };
     }
-  }
+  }  
 }

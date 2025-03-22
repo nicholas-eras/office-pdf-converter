@@ -1,3 +1,5 @@
+aio-pika==9.5.5
+aiormq==6.8.1
 annotated-types==0.7.0
 anyio==4.8.0
 bidict==0.23.1
@@ -21,6 +23,9 @@ jmespath==1.0.1
 markdown-it-py==3.0.0
 MarkupSafe==3.0.2
 mdurl==0.1.2
+multidict==6.2.0
+pamqp==3.3.0
+propcache==0.3.0
 psycopg2-binary==2.9.10
 pydantic==2.10.5
 pydantic_core==2.27.2
@@ -49,3 +54,4 @@ watchfiles==1.0.4
 websocket-client==1.8.0
 websockets==14.1
 wsproto==1.2.0
+yarl==1.18.3
