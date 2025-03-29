@@ -3,8 +3,8 @@ import boto3
 
 class S3UploadService:
     def __init__(self):
-        self.AWS_S3_BUCKET = 'office-conversion-files'
-        self.AWS_REGION = 'us-east-2'
+        self.AWS_S3_BUCKET = os.getenv('AWS_S3_BUCKET')
+        self.AWS_REGION = os.getenv('AWS_S3_REGION')
         
         self.aws_access_key = os.getenv('AWS_S3_ACCESS_KEY')
         self.aws_secret_key = os.getenv('AWS_S3_SECRET_ACCESS_KEY')

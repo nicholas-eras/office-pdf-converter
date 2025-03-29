@@ -1,53 +1,32 @@
-import time
 import socketio
-from converter import FileConversionService
+import logging
+import asyncio
 
-sio = socketio.Client(logger=True, engineio_logger=True)
+logging.basicConfig(level=logging.INFO, 
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-@sio.event
-def connect():
-    print("Connected to Socket.IO server!")
-    print(f"Session ID: {sio.sid}")
-
-@sio.event
-def connect_error(data):
-    print(f"Connection error: {data}")
+sio = socketio.AsyncClient(logger=True, engineio_logger=True)
 
 @sio.event
-def disconnect():
-    print("Disconnected from Socket.IO server")
+async def connect():
+    logger.info(f"Conectado ao servidor Socket.IO! SID: {sio.sid}")
 
-@sio.on("file-to-conversion-queue")
-def convertQueue(data):
-    print("Event 'file-to-conversion-queue' triggered!")
-    if not data:
-        print("Error: No data received in the event.")
-        return
-    if not isinstance(data, dict):
-        print(f"Error: Expected a dictionary, but received {type(data)}")
-        return
+@sio.event
+async def connect_error(data):
+    logger.error(f"Erro na conexão Socket.IO: {data}")
 
-    for file, status in data.items():
-        if status == "awaiting":
-            print(f"Converting file: {file}")
-            # file_service = FileConversionService(sio)
-            # file_service.convert_upload_file(file)
-        else:
-            print(f"Skipping file {file} with status: {status}")
-    
+@sio.event
+async def disconnect():
+    logger.info("Desconectado do servidor Socket.IO")
 
-def connect_socket():
-    while True: 
+async def connect_socket():
+    while True:
         try:
-            print("Connecting to Socket.IO server...")
-            sio.connect('http://localhost:3000', transports=['websocket'])
-            print("Connection successful!")
-            break 
+            logger.info("Tentando conectar ao servidor Socket.IO...")
+            await sio.connect('http://backend:3000', transports=['websocket'])
+            logger.info("Conexão Socket.IO bem-sucedida!")
+            break
         except Exception as e:
-            print(f"Socket.IO connection error: {str(e)}")
-            print("Reconnecting in 1 second...")
-            time.sleep(1)
-
-connect_socket()
-
-sio.wait()
+            logger.error(f"Erro ao conectar Socket.IO: {str(e)}")
+            await asyncio.sleep(1)

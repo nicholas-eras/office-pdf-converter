@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 import subprocess
 import os
-from s3Client import S3UploadService
+from .s3Client import S3UploadService
 
 class FileConversionService:
     def __init__(self, sio):
