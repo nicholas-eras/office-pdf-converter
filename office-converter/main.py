@@ -1,4 +1,3 @@
-# main.py
 import asyncio
 from fastapi import FastAPI
 import logging
