@@ -13,6 +13,7 @@ function UploadPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isUploading, setIsUploading] = useState(false);
   const [socketConnected, setSocketConnected] = useState(true);
+  const socket = io('http://localhost:3000');
 
   const filesPerPage = 5;
   const maxFileSize = 10;
@@ -25,9 +26,12 @@ function UploadPage() {
   ];
 
   useEffect(() => {
-    const socket = io('http://localhost:3000');
 
-    const token = localStorage.getItem('token');          
+    const token = localStorage.getItem('token');     
+    if (!token){
+      window.location.href = '/login';
+    }
+
     const decoded = jwtDecode(token);
     const userId = decoded.sub;          
 
@@ -84,6 +88,7 @@ function UploadPage() {
 
   const handleFileUpload = (event) => {
     const selectedFile = event.target.files[0];
+
     if (!selectedFile) return;
 
     if (selectedFile.size >= maxFileSizeMb) {
@@ -98,7 +103,6 @@ function UploadPage() {
       resetInput();
       return;
     }
-
     setFile(selectedFile);
   };
 
@@ -124,6 +128,7 @@ function UploadPage() {
   };
 
   const handleFileSend = async () => {
+    console.log(file);
     if (!file) {
       toast.warn('Por favor, selecione pelo menos um arquivo para enviar.');
       return;
@@ -136,6 +141,11 @@ function UploadPage() {
   
     setIsUploading(true);
     try {
+      socket.emit('notify-event', {
+        event: "file-to-conversion-queue",
+        data: file.name,
+      });
+      
       await uploadToS3(file);
   
       setUploadedFiles((prevFiles) => [
@@ -207,18 +217,8 @@ function UploadPage() {
 
   const indexOfLastFile = currentPage * filesPerPage;
   const indexOfFirstFile = indexOfLastFile - filesPerPage;
-  const currentFiles = uploadedFiles.slice(indexOfFirstFile, indexOfLastFile);
+  const currentFiles = uploadedFiles?.slice(indexOfFirstFile, indexOfLastFile);
  
-  useEffect(() => {
-    if (uploadedFiles && file) {      
-      socket.emit('notify-event', {
-        event: "file-to-conversion-queue",
-        data: file.name,
-      });
-      resetInput();      
-    }
-  }, [uploadedFiles, file]);
-  
   return (
     <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
       <div className="relative py-3 sm:max-w-4xl sm:mx-auto w-full">

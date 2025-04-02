@@ -24,7 +24,7 @@ services:
       - .env
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - RABBIT_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+      - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
     ports:
       - 3000:3000
     volumes:
@@ -36,27 +36,27 @@ services:
     networks:
       - mynetwork
 
-  rabbitmqConsumer:
-    image: rabbitmq-consumer
-    build:
-      context: ./backend
-      dockerfile: ./rabbitmq.dockerfile
-    container_name: rabbitmq-consumer
-    env_file:
-      - .env
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - RABBIT_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
-    ports:
-      - 3002:3000
-    volumes:
-      - ./backend/:/app/
-    restart: always
-    depends_on:
-      - postgres
-      - rabbitmq
-    networks:
-      - mynetwork
+  # rabbitmqConsumer:
+  #   image: rabbitmq-consumer
+  #   build:
+  #     context: ./backend
+  #     dockerfile: ./rabbitmq.dockerfile
+  #   container_name: rabbitmq-consumer
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  #     - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+  #   ports:
+  #     - 3002:3000
+  #   volumes:
+  #     - ./backend/:/app/
+  #   restart: always
+  #   depends_on:
+  #     - postgres
+  #     - rabbitmq
+  #   networks:
+  #     - mynetwork
 
   converter:
     image: converter
@@ -68,6 +68,8 @@ services:
       - 8000:8000
     env_file:
       - .env
+    environment:
+      - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
     volumes:
       - ./office-converter/:/app/
     restart: always

@@ -8,8 +8,8 @@ async function bootstrap() {
     {
       transport: Transport.RMQ,
       options: {
-        urls: [process.env.RABBIT_URL],
-        queue: "files-queue",
+        urls: [process.env.RABBITMQ_URL],
+        queue: process.env.RABBITMQ_QUEUE,
         noAck: false,
         prefetchCount: 1
       },

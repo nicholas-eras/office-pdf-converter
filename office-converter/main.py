@@ -12,9 +12,11 @@ app = FastAPI()
 rabbitmq_consumer = RabbitMQConsumer()
 
 @app.on_event("startup")
-async def startup_event():
+async def startup_event():    
     logger.info("Iniciando conexões com Socket.IO e RabbitMQ...")
-    await asyncio.gather(connect_socket(), rabbitmq_consumer.connect())
+    await rabbitmq_consumer.connect()
+    asyncio.create_task(rabbitmq_consumer.consume_messages())
+    asyncio.create_task(connect_socket())
 
 @app.on_event("shutdown")
 async def shutdown_event():

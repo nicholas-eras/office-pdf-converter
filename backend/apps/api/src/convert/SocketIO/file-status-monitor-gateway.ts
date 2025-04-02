@@ -3,6 +3,7 @@ import { SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/web
 import { PrismaService } from '../../../../../prisma/prisma.service';
 import { Server, Socket } from 'socket.io';
 import { ColoredLogger } from '../../utils/colored-logger';
+import { RabbitMqService } from '../../rabbitmq/rabbitmq.service';
 
 interface Files{
   fileName: string,
@@ -15,7 +16,10 @@ interface UserFiles{
 
 @WebSocketGateway({ cors: { origin: '*' } })
 export class FileStatusMonitorGateway {  
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rabbitMqService: RabbitMqService
+  ) {}
   private files:UserFiles = {};
 
   deleteFile = (userId:number, fileName:string) => {
@@ -43,6 +47,11 @@ export class FileStatusMonitorGateway {
   @SubscribeMessage('upload-file-to-conversion')
   handleFileUploadToConversion(client: any, payload: {fileToConvert: string}): any {
     this.files[payload.fileToConvert]  =  'awaiting';
+  }
+
+  @SubscribeMessage('get-queue')
+  async handleGetQueue(client: any){
+    this.server.emit('get-queue', await this.rabbitMqService.getQueueMessages());
   }
 
   @SubscribeMessage('notify-event')

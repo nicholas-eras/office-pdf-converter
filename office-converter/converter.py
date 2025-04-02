@@ -4,9 +4,9 @@ import os
 from .s3Client import S3UploadService
 
 class FileConversionService:
-    def __init__(self, sio):
+    def __init__(self):
         self.s3_service = S3UploadService()
-        self.sio = sio 
+        # self.sio = sio 
 
     def __convert_to_pdf(self, file_to_convert: str):
         output = file_to_convert[:file_to_convert.rfind(".")] + ".pdf"
@@ -20,7 +20,7 @@ class FileConversionService:
             "converted_files/"
         ]
 
-        self.sio.emit('update-file-status', {'fileToConvert': file_to_convert, 'status': 'processing'})
+        # self.sio.emit('update-file-status', {'fileToConvert': file_to_convert, 'status': 'processing'})
 
         try:
             process = subprocess.run(
@@ -34,7 +34,7 @@ class FileConversionService:
                 print(process)
                 raise HTTPException(detail="Server error process", status_code=500)
             else:
-                self.sio.emit('update-file-status', {'fileToConvert': file_to_convert, 'status': 'done'})
+                # self.sio.emit('update-file-status', {'fileToConvert': file_to_convert, 'status': 'done'})
                 
                 with open(f"converted_files/{output}", 'rb') as pdf_file:
                     pdf_content = pdf_file.read()
@@ -65,5 +65,5 @@ class FileConversionService:
             return {"status": "success", "s3_result": s3_result}
 
         except Exception as e:
-            print(e)
+            return {"status":"erro", "detail":str(e)}
             raise HTTPException(detail="Error in file conversion/upload process", status_code=500)
