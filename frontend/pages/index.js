@@ -140,14 +140,10 @@ function UploadPage() {
     }
   
     setIsUploading(true);
-    try {
-      socket.emit('notify-event', {
-        event: "file-to-conversion-queue",
-        data: file.name,
-      });
-      
+    try {      
       await uploadToS3(file);
-  
+      socket.emit('file-to-conversion-queue', file.name);
+
       setUploadedFiles((prevFiles) => [
         { fileName: file.name, status: "awaiting" },
         ...prevFiles

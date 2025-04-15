@@ -4,6 +4,7 @@ import { PrismaService } from '../../../../../prisma/prisma.service';
 import { Server, Socket } from 'socket.io';
 import { ColoredLogger } from '../../utils/colored-logger';
 import { RabbitMqService } from '../../rabbitmq/rabbitmq.service';
+import { firstValueFrom } from 'rxjs';
 
 interface Files{
   fileName: string,
@@ -38,11 +39,20 @@ export class FileStatusMonitorGateway {
     this.server.emit("check-event", client.id + " sent: " + payload);
   }
 
-  @SubscribeMessage('file-to-conversion-queue')
-  handleFileMonitoring(client: any, fileName: string): any {
+@SubscribeMessage('file-to-conversion-queue')
+async handleFileMonitoring(client: any, fileName: string): Promise<any> {
+  try {
+    const res = await firstValueFrom(this.rabbitMqService.sendMessage(fileName)); //nao atribuir a uma variavel da erro, investigar futuramente
+    console.log('Resposta do RabbitMQ:', res);
     this.server.emit("file-to-conversion-queue", {[fileName]: "awaiting"});
+
     return this.files;
+  } catch (error) {
+    this.logger.error(`Erro ao enviar para a fila: ${error.message}`);
+    throw new Error("Erro ao processar o arquivo para a fila.");
   }
+}
+
 
   @SubscribeMessage('upload-file-to-conversion')
   handleFileUploadToConversion(client: any, payload: {fileToConvert: string}): any {
@@ -55,7 +65,7 @@ export class FileStatusMonitorGateway {
   }
 
   @SubscribeMessage('notify-event')
-  handleNotifyEvent(client: any, payload: {event: string, data:string}) {        
+  handleNotifyEvent(client: any, payload: {event: string, data:string}) {           
     this.files[payload.data]  =  'awaiting';
     this.server.emit(payload.event, this.files);
     return `Success! ${payload.event}:${payload.data}`;

@@ -2,6 +2,7 @@ import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { ColoredLogger } from '../utils/colored-logger';
 import { Channel, Connection, connect, Message } from 'amqplib';
+import { Observable } from 'rxjs';
 
 @Injectable()
 export class RabbitMqService implements OnModuleInit {
@@ -30,13 +31,12 @@ export class RabbitMqService implements OnModuleInit {
     }
   }
 
-  sendMessage(fileName: string): Record<any, any> {
+  sendMessage(fileName: string): Observable<any> {
     try {
-      const response = this.client.send('default-nestjs-rmq',  fileName );
-      return response;
+      return this.client.send('default-nestjs-rmq', fileName);
     } catch (error) {
       this.logger.error('Failed to send message to RabbitMQ:', error.message);
-      return { status: 'error sending message' };
+      throw new Error('Error sending message to RabbitMQ');
     }
   }
 

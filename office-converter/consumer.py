@@ -2,6 +2,7 @@ import aio_pika
 import logging
 import asyncio
 import os
+import ast
 from .converter import FileConversionService
 
 logging.basicConfig(level=logging.INFO, 
@@ -37,9 +38,10 @@ class RabbitMQConsumer:
         logger.info(f"Esperando mensagens na fila '{self.queue_name}'...")
 
         async with queue.iterator() as queue_iter:
-            async for message in queue_iter:
+            async for message in queue_iter:       
                 async with message.process():
-                    fileName = message.body.decode()
+                    body = ast.literal_eval(message.body.decode())                
+                    fileName = body["data"]
                     logger.info(f"Trying convert: {fileName}")
                     res = self.converter.convert_upload_file(fileName)
                     if res.get("status", None) == "success":
