@@ -30,16 +30,15 @@ model User {
 model UserFile {
   id      Int    @id @default(autoincrement())
   userId  Int
-  fileId  Int
+  fileId  Int    @unique 
   user    User   @relation(fields: [userId], references: [id])
   file    File   @relation(fields: [fileId], references: [id])
-
-  @@unique([userId, fileId])
 }
+
 
 model ConvertedFile {
   id        Int      @id @default(autoincrement())
-  fileId    Int
+  fileId    Int      @unique
   fileName  String   @unique
   createdAt DateTime @default(now())
   file      File     @relation(fields: [fileId], references: [id])

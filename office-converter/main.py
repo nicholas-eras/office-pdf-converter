@@ -1,27 +1,28 @@
-import asyncio
 from fastapi import FastAPI
 import logging
-from .socketioClient import connect_socket
-from .consumer import RabbitMQConsumer  
+import asyncio
+from .socketioClient import SocketIOClient  
+from .consumer import RabbitMQConsumer
 
-logging.basicConfig(level=logging.INFO, 
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
-rabbitmq_consumer = RabbitMQConsumer()
+
+socketio_client = SocketIOClient()
+rabbitmq_consumer = RabbitMQConsumer(socketio_client)
 
 @app.on_event("startup")
 async def startup_event():    
     logger.info("Iniciando conexões com Socket.IO e RabbitMQ...")
+    await socketio_client.connect_socket()
     await rabbitmq_consumer.connect()
     asyncio.create_task(rabbitmq_consumer.consume_messages())
-    asyncio.create_task(connect_socket())
 
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Encerrando aplicativo...")
     await rabbitmq_consumer.close()
+    await socketio_client.disconnect_socket() 
 
 if __name__ == "__main__":
     import uvicorn

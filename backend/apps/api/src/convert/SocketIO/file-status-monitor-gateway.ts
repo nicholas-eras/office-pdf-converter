@@ -21,13 +21,8 @@ export class FileStatusMonitorGateway {
     private readonly prisma: PrismaService,
     private readonly rabbitMqService: RabbitMqService
   ) {}
+  
   private files:UserFiles = {};
-
-  deleteFile = (userId:number, fileName:string) => {
-    this.files[userId] = this.files[userId].filter((files: Files) =>files.fileName != fileName);
-    this.server.emit("file-to-conversion-queue", this.files);
-  }
-
   private logger = new ColoredLogger('External Connection');   
   
   @WebSocketServer()
@@ -39,20 +34,24 @@ export class FileStatusMonitorGateway {
     this.server.emit("check-event", client.id + " sent: " + payload);
   }
 
-@SubscribeMessage('file-to-conversion-queue')
-async handleFileMonitoring(client: any, fileName: string): Promise<any> {
-  try {
-    const res = await firstValueFrom(this.rabbitMqService.sendMessage(fileName)); //nao atribuir a uma variavel da erro, investigar futuramente
-    console.log('Resposta do RabbitMQ:', res);
-    this.server.emit("file-to-conversion-queue", {[fileName]: "awaiting"});
+  @SubscribeMessage('file-to-conversion-queue')
+  async handleFileMonitoring(client: any, fileName: string): Promise<any> {
+    try {
+      const res = firstValueFrom(this.rabbitMqService.sendMessage(fileName)); //nao atribuir a uma variavel da erro, investigar futuramente
+      console.log('Resposta do RabbitMQ:', res);
 
-    return this.files;
-  } catch (error) {
-    this.logger.error(`Erro ao enviar para a fila: ${error.message}`);
-    throw new Error("Erro ao processar o arquivo para a fila.");
+      const file = await this.prisma.file.findUnique({
+        where: {
+          fileName
+        }
+      });    
+
+      return file;
+    } catch (error) {
+      this.logger.error(`Erro ao enviar para a fila: ${error.message}`);
+      throw new Error("Erro ao processar o arquivo para a fila.");
+    }
   }
-}
-
 
   @SubscribeMessage('upload-file-to-conversion')
   handleFileUploadToConversion(client: any, payload: {fileToConvert: string}): any {
@@ -73,12 +72,8 @@ async handleFileMonitoring(client: any, fileName: string): Promise<any> {
 
   @SubscribeMessage('update-file-status')
   async handleUpdateFilestatus(client: any, payload: {fileToConvert: string, status: string}): Promise<any> {
-    this.files[payload.fileToConvert] = payload.status;
- 
-    this.server.emit("file-to-conversion-queue", this.files);
-    if (payload.status === "done"){
-      delete this.files[payload.fileToConvert];
-    };
+    this.files[payload.fileToConvert] = payload.status;    
+
     const file = await this.prisma.file.update({      
         where:{
           fileName: payload.fileToConvert
@@ -89,13 +84,26 @@ async handleFileMonitoring(client: any, fileName: string): Promise<any> {
       }
     );
 
-    await this.prisma.convertedFile.create({
+    if (payload.status === "done"){
+      await this.prisma.convertedFile.create({
         data:{
-          fileName: payload.fileToConvert.slice(0, payload.fileToConvert.lastIndexOf(".")) + ".pdf",
-          fileId: file.id,
+            fileName: payload.fileToConvert.slice(0, payload.fileToConvert.lastIndexOf(".")) + ".pdf",
+            fileId: file.id,
+          }
         }
+      );
+    };
+    
+    const userId = (await this.prisma.userFile.findUnique({
+      where: {
+        fileId: file.id
       }
-    );
+    })).userId;
+    
+    this.server.emit(userId.toString(), {
+      fileName: payload.fileToConvert,
+      status: payload.status
+    });
   }
   
   handleConnection(socket: Socket) {

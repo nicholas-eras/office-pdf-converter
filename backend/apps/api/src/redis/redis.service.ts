@@ -45,7 +45,7 @@ export class RedisService {
       this.logger.debug("Done setting user's limit file upload.");
       
     } catch (error) {      
-      console.log(error)      ;
+      this.logger.error(error);
       throw new Error('Invalid Redis credentials');      
     }
   }

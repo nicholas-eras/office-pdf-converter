@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { uploadToS3, userFiles, deleteFile } from '../services/file';
 import AuthRequired from '../services/auth-required';
 import { downloadFile, getFile } from '../services/file';
@@ -25,6 +25,12 @@ function UploadPage() {
     ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".svg", ".webp"
   ];
 
+  const uploadedFilesRef = useRef([]);
+
+  useEffect(() => {
+    uploadedFilesRef.current = uploadedFiles;
+  }, [uploadedFiles]);
+
   useEffect(() => {
 
     const token = localStorage.getItem('token');     
@@ -38,21 +44,21 @@ function UploadPage() {
     fetchFilesStatus();
 
     socket.on("connect", () => {
-   
+
       setSocketConnected(true); 
-      socket.on(userId.toString(), async(data) => {   
+      socket.on(userId.toString(), async(data) => {        
         if (!data) return;
-        console.log(data);
-        const fileName = Object.keys(data)[0];
-        const newStatus = Object.values(data)[0];
-        try {
-          const fileToUpdate = uploadedFiles.find(file => file.fileName === fileName);    
+
+        const {fileName, status} = data;
+       
+        try {                    
+          const fileToUpdate = uploadedFilesRef.current.find(file => file.fileName === fileName);    
           if (!fileToUpdate) {
             return;
           }
   
           let pdfInfo = {};
-          if (newStatus === "done") {
+          if (status === "done") {
             try {
               pdfInfo =  await getFile(fileToUpdate.id);
             } catch (error) {
@@ -60,10 +66,10 @@ function UploadPage() {
               toast.error('Erro ao buscar informações do PDF');
             }
           }
-  
+
           setUploadedFiles(prevFiles => prevFiles.map(file => 
             file.fileName === fileName
-              ? { ...file, status: newStatus, pdf: pdfInfo }
+              ? { ...file, status: status, pdf: pdfInfo }
               : file
           ));
   
@@ -72,7 +78,6 @@ function UploadPage() {
           toast.error('Erro ao atualizar arquivo');
         }
       });
-  
     });  
 
     socket.on('disconnect', () => {
@@ -128,7 +133,6 @@ function UploadPage() {
   };
 
   const handleFileSend = async () => {
-    console.log(file);
     if (!file) {
       toast.warn('Por favor, selecione pelo menos um arquivo para enviar.');
       return;
@@ -142,19 +146,20 @@ function UploadPage() {
     setIsUploading(true);
     try {      
       await uploadToS3(file);
-      socket.emit('file-to-conversion-queue', file.name);
 
-      setUploadedFiles((prevFiles) => [
-        { fileName: file.name, status: "awaiting" },
-        ...prevFiles
-      ]);
+      socket.emit('file-to-conversion-queue', file.name, (file) => {
+        setUploadedFiles((prevFiles) => [
+          { fileName: file.fileName, status: "awaiting", id: file.id },
+          ...prevFiles
+        ]);
+      });
 
       toast.success('Arquivo enviado com sucesso!');
     } catch (error) {
       if (error.message === 'Unauthorized') {
         handleAuthError();
       } else {
-        console.log(error);
+        console.error(error);
         toast.error('Erro ao enviar o arquivo.');
       }
     } finally {

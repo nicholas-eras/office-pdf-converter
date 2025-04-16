@@ -25,6 +25,6 @@ import { RabbitMqModule } from './rabbitmq/rabbitmq.module';
     RabbitMqModule
   ],
   controllers: [AppController],
-  providers: [AppService, FileStatusMonitorGateway, PrismaService, TasksService],
+  providers: [AppService, PrismaService, TasksService],
 })
 export class AppModule {}

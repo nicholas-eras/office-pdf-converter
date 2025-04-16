@@ -133,16 +133,15 @@ export class AppService {
   async getFileS3(filename: string, res: Response, user: {userId: number, username: string}) {
     const fileExtension = filename.slice(filename.indexOf("."));
     
-    
-    const fileId = fileExtension != ".pdf" ?  await (await this.prismaService.file.findUnique({
+    const fileId = fileExtension != ".pdf" ? (await this.prismaService.file.findUnique({
       where: {
         fileName: filename
       }
-    })).id : await (await this.prismaService.convertedFile.findUnique({
+    })).id : (await this.prismaService.convertedFile.findUnique({
         where: {
           fileName: filename
         }
-      })).fileId;  
+      })).fileId;
 
     if (!fileId) {
       throw new NotFoundException("file not on database");
@@ -150,10 +149,8 @@ export class AppService {
 
     if (!(await this.prismaService.userFile.findUnique({
       where: {
-        userId_fileId: {
-          userId: user.userId,
-          fileId: fileId
-        }
+        userId: user.userId,
+        fileId: fileId
       }
     }))) {
       throw new UnauthorizedException("This file doesn't belong to you");

@@ -34,7 +34,6 @@ const putToS3 = async (url, file) => {
     });
     
     if (!response.ok) {
-      console.log(response);
       throw new Error(`Upload failed: ${response.status}`);
     }
     return "Arquivo enviado com sucesso!";
@@ -96,7 +95,7 @@ export async function userFiles() {
 }
 
 export async function downloadFile(fileName) {
-  try {   
+  try {    
     const token = localStorage.getItem('token');   
     const response = await fetch('http://localhost:3000/file/download/' + encodeURIComponent(fileName), {
       method: 'GET',     
@@ -131,14 +130,14 @@ export async function deleteFile(fileId) {
 export async function getFile(fileId) {
   try {   
     const token = localStorage.getItem('token');   
-    const response = await fetch('http://localhost:3000/file/' + fileId, {
+    const response = await fetch('http://localhost:3000/file/' + fileId + "/pdf", {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`, 
       },      
     });
-    return response   
+    return await response.json()   
   } catch (error) {
     console.error('Erro ao obter o arquivo:', error);    
   }

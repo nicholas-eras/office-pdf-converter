@@ -3,7 +3,6 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import { AppService } from '../app.service';
-import { FileStatusMonitorGateway } from './SocketIO/file-status-monitor-gateway';
 
 @Injectable()
 export class ConvertService {
@@ -11,7 +10,6 @@ export class ConvertService {
     private readonly httpService: HttpService, 
     private readonly prisma: PrismaService,
     private readonly appService: AppService,
-    private readonly fileStatusMonitorGateway: FileStatusMonitorGateway,
   ){}
 
   async convert(file: Express.Multer.File, user: {userId: number, username: string}): Promise<{
@@ -51,33 +49,30 @@ export class ConvertService {
       
       return response.data;
     } catch (error) {
+      const fileId = (await this.prisma.file.findUnique({
+        where: {
+          fileName
+        }
+      })).id;
+
       await this.prisma.convertedFile.deleteMany({
         where:{
-          fileId: (await this.prisma.file.findUnique({
-            where: {
-              fileName
-            }
-          })).id,
+          fileId
         }
       });
 
       await this.prisma.userFile.delete({
         where:{        
-          userId_fileId: {
-            fileId:  (await this.prisma.file.findUnique({
-              where: {
-                fileName
-              }
-            })).id,
-            userId: user.userId
-          }
+          fileId
         }
       });
+
       await this.prisma.file.delete({
         where:{
           fileName: fileName
         }
       });
+
       console.error(error.response);
       throw new InternalServerErrorException(`Erro ao converter arquivo: ${error.response?.data?.detail ?? error.message}`);
     }    
@@ -97,13 +92,11 @@ export class ConvertService {
     }
     
     if (!(await this.prisma.userFile.findUnique({
-      where:{
-        userId_fileId:{
-          userId: userId,
-          fileId: file.id
+        where:{
+          fileId
         }
-      }
-    }))){
+        })
+      )){
       throw new UnauthorizedException("This file doesnt belongs to you");
     }
 
@@ -115,10 +108,7 @@ export class ConvertService {
 
     await this.prisma.userFile.delete({
       where:{        
-        userId_fileId: {
-          fileId:  fileId,
-          userId: userId
-        }
+        fileId
       }
     });
     
@@ -127,8 +117,6 @@ export class ConvertService {
         id: fileId
       }
     });
-
-    this.fileStatusMonitorGateway.deleteFile(0, file.fileName);
 
     return await this.appService.deleteFileS3(file.fileName);
   }

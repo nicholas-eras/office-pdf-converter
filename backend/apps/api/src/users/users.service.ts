@@ -57,7 +57,15 @@ export class UsersService {
       pdf: userFile.file.convertedFiles.length > 0 ? userFile.file.convertedFiles[0] : null,
     }));
     
-    return result;
-    
+    return result;    
+  }
+
+  async getFilePDF(fileId: number): Promise<FileEntity>{
+    const file = await this.prisma.convertedFile.findUnique({
+      where:{
+        fileId
+      }
+    })
+    return file;    
   }
 }

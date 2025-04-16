@@ -2,20 +2,18 @@ import aio_pika
 import logging
 import asyncio
 import os
-import ast
+import json
 from .converter import FileConversionService
 
-logging.basicConfig(level=logging.INFO, 
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class RabbitMQConsumer:
-    def __init__(self):
+    def __init__(self, socketio_client):
         self.url = os.getenv('RABBITMQ_URL')
         self.queue_name = "files-queue"
         self.connection = None
         self.channel = None
-        self.converter = FileConversionService()
+        self.converter = FileConversionService(socketio_client)
 
     async def connect(self):
         while True:
@@ -40,10 +38,12 @@ class RabbitMQConsumer:
         async with queue.iterator() as queue_iter:
             async for message in queue_iter:       
                 async with message.process():
-                    body = ast.literal_eval(message.body.decode())                
+                    logger.info(f"Recebida mensagem: {message.body}")
+
+                    body = json.loads(message.body.decode())              
                     fileName = body["data"]
                     logger.info(f"Trying convert: {fileName}")
-                    res = self.converter.convert_upload_file(fileName)
+                    res = await self.converter.convert_upload_file(fileName)
                     if res.get("status", None) == "success":
                         logger.info(f"Success converting {fileName}")  
                     else:
