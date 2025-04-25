@@ -41,9 +41,10 @@ class RabbitMQConsumer:
                     logger.info(f"Recebida mensagem: {message.body}")
 
                     body = json.loads(message.body.decode())              
-                    fileName = body["data"]
+                    fileName = body["data"]["fileName"]
+                    userId = int(body["data"]["userId"])
                     logger.info(f"Trying convert: {fileName}")
-                    res = await self.converter.convert_upload_file(fileName)
+                    res = await self.converter.convert_upload_file(fileName, userId)
                     if res.get("status", None) == "success":
                         logger.info(f"Success converting {fileName}")  
                     else:

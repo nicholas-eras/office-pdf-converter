@@ -145,7 +145,10 @@ function UploadPage() {
     try {      
       await uploadToS3(file);
 
-      socket.emit('file-to-conversion-queue', file.name, (file) => {
+      socket.emit('file-to-conversion-queue', {
+        fileName: file.name,
+        userId: userId
+      }, (file) => {
         setUploadedFiles((prevFiles) => [
           { fileName: file.fileName, status: "awaiting", id: file.id },
           ...prevFiles

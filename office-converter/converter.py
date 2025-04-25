@@ -9,7 +9,7 @@ class FileConversionService:
         self.s3_service = S3UploadService()
         self.sio = socketio_client 
 
-    async def __convert_to_pdf(self, file_to_convert: str):
+    async def __convert_to_pdf(self, file_to_convert: str, userId: int):
         output = file_to_convert[:file_to_convert.rfind(".")] + ".pdf"
         cmd = [
             'libreoffice', 
@@ -20,7 +20,7 @@ class FileConversionService:
             '--outdir', 
             "converted_files/"
         ]
-        await self.sio.emit('update-file-status', {'fileToConvert': file_to_convert, 'status': 'processing'})
+        await self.sio.emit('update-file-status', {'fileToConvert': file_to_convert, 'status': 'processing', 'userId': userId})
 
         try:
             process = await asyncio.create_subprocess_exec(
@@ -33,7 +33,7 @@ class FileConversionService:
             if process.returncode != 0:
                 raise HTTPException(status_code=500, detail="Erro na conversão")
             else:
-                await self.sio.emit('update-file-status', {'fileToConvert': file_to_convert, 'status': 'done'})
+                await self.sio.emit('update-file-status', {'fileToConvert': file_to_convert, 'status': 'done', 'userId': userId})
                 
                 with open(f"converted_files/{output}", 'rb') as pdf_file:
                     pdf_content = pdf_file.read()
@@ -51,10 +51,10 @@ class FileConversionService:
             print(e)
             raise HTTPException(detail="Server error conversion", status_code=500)
 
-    async def convert_upload_file(self, fileName: str):
+    async def convert_upload_file(self, fileName: str, userId: int):
         try:
             download_result = self.s3_service.download_from_s3(fileName)
-            s3_result = await self.__convert_to_pdf(fileName)
+            s3_result = await self.__convert_to_pdf(fileName, userId)
 
             if os.path.exists(download_result["FilePath"]):
                 os.remove(download_result["FilePath"])
