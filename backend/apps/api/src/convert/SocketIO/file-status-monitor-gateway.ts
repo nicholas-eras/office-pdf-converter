@@ -37,14 +37,20 @@ export class FileStatusMonitorGateway {
   @SubscribeMessage('file-to-conversion-queue')
   async handleFileMonitoring(client: any, fileName: string): Promise<any> {
     try {
-      const res = firstValueFrom(this.rabbitMqService.sendMessage(fileName)); //nao atribuir a uma variavel da erro, investigar futuramente
-      console.log('Resposta do RabbitMQ:', res);
-
       const file = await this.prisma.file.findUnique({
         where: {
           fileName
         }
       });    
+      console.log(fileName);
+      const userId = (await this.prisma.userFile.findUnique({
+        where: {
+          fileId: file.id
+        }
+      })).userId;
+
+      const res = firstValueFrom(this.rabbitMqService.sendMessage(`${userId}_${fileName}`)); //nao atribuir a uma variavel da erro, investigar futuramente
+      console.log('Resposta do RabbitMQ:', res);
 
       return file;
     } catch (error) {
@@ -73,10 +79,12 @@ export class FileStatusMonitorGateway {
   @SubscribeMessage('update-file-status')
   async handleUpdateFilestatus(client: any, payload: {fileToConvert: string, status: string}): Promise<any> {
     this.files[payload.fileToConvert] = payload.status;    
+    
+    const fileNameWithoutUserId = payload.fileToConvert.slice(payload.fileToConvert.indexOf("_") + 1);
 
     const file = await this.prisma.file.update({      
         where:{
-          fileName: payload.fileToConvert
+          fileName: fileNameWithoutUserId
         },
         data:{
           status: payload.status
@@ -87,7 +95,10 @@ export class FileStatusMonitorGateway {
     if (payload.status === "done"){
       await this.prisma.convertedFile.create({
         data:{
-            fileName: payload.fileToConvert.slice(0, payload.fileToConvert.lastIndexOf(".")) + ".pdf",
+            fileName: payload.fileToConvert.slice(
+              payload.fileToConvert.indexOf("_")+1,
+              payload.fileToConvert.lastIndexOf(".")
+            ) + ".pdf",
             fileId: file.id,
           }
         }

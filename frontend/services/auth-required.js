@@ -12,9 +12,9 @@ const checkAuth = async () => {
     if (!response.ok) {
       throw new Error('Not authenticated');
     }
-    return true; // Usuário autenticado
+    return true; 
   } catch (error) {
-    return false; // Usuário não autenticado
+    return false; 
   }
 };
 

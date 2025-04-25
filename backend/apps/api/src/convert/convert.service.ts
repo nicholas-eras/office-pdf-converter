@@ -93,7 +93,8 @@ export class ConvertService {
     
     if (!(await this.prisma.userFile.findUnique({
         where:{
-          fileId
+          fileId,
+          userId
         }
         })
       )){
@@ -118,6 +119,8 @@ export class ConvertService {
       }
     });
 
-    return await this.appService.deleteFileS3(file.fileName);
+    await this.appService.deleteFileS3(file.fileName.slice(0, file.fileName.lastIndexOf(".")) + ".pdf");
+
+    return await this.appService.deleteFileS3(`${userId}_${file.fileName}`);
   }
 }

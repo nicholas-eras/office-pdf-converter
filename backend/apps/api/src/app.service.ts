@@ -121,7 +121,7 @@ export class AppService {
 
     await this.saveFileOnDatabase(filename, user.userId);    
 
-    const command = new PutObjectCommand({ Bucket: process.env.AWS_S3_BUCKET, Key: filename, ContentType: contentType });
+    const command = new PutObjectCommand({ Bucket: process.env.AWS_S3_BUCKET, Key: `${user.userId}_${filename}`, ContentType: contentType });
     return { "url": await getSignedUrl(this.s3, command, { expiresIn: 60 }) };
   }
 
@@ -158,7 +158,7 @@ export class AppService {
 
     const command = new GetObjectCommand({
       Bucket: process.env.AWS_S3_BUCKET,
-      Key: filename,
+      Key: `${user.userId}_${filename}`,
     });
     const s3res = await this.s3.send(command);
 

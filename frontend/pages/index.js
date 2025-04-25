@@ -13,6 +13,13 @@ function UploadPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isUploading, setIsUploading] = useState(false);
   const [socketConnected, setSocketConnected] = useState(true);
+
+  const token = localStorage.getItem('token');     
+  if (!token){
+    window.location.href = '/login';
+  }
+  const userId = jwtDecode(token).sub; 
+
   const socket = io('http://localhost:3000');
 
   const filesPerPage = 5;
@@ -32,15 +39,6 @@ function UploadPage() {
   }, [uploadedFiles]);
 
   useEffect(() => {
-
-    const token = localStorage.getItem('token');     
-    if (!token){
-      window.location.href = '/login';
-    }
-
-    const decoded = jwtDecode(token);
-    const userId = decoded.sub;          
-
     fetchFilesStatus();
 
     socket.on("connect", () => {
@@ -50,9 +48,9 @@ function UploadPage() {
         if (!data) return;
 
         const {fileName, status} = data;
-       
+
         try {                    
-          const fileToUpdate = uploadedFilesRef.current.find(file => file.fileName === fileName);    
+          const fileToUpdate = uploadedFilesRef.current.find(file =>`${userId}_${file.fileName}` === fileName);    
           if (!fileToUpdate) {
             return;
           }
@@ -68,7 +66,7 @@ function UploadPage() {
           }
 
           setUploadedFiles(prevFiles => prevFiles.map(file => 
-            file.fileName === fileName
+            `${userId}_${file.fileName}` === fileName
               ? { ...file, status: status, pdf: pdfInfo }
               : file
           ));
