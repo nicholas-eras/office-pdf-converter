@@ -11,12 +11,16 @@ generator client {
 
 model File {
   id          Int      @id @default(autoincrement())
-  fileName    String   @unique
+  fileName    String   
   fileExtension String
   status      String
+  userId      Int      
+
   createdAt   DateTime @default(now())
   convertedFiles ConvertedFile[]
-  userFiles   UserFile[]
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([fileName, userId])
 }
 
 model User {
@@ -24,22 +28,18 @@ model User {
   username  String     @unique
   password  String
   createdAt DateTime   @default(now())
-  userFiles UserFile[]
-}
 
-model UserFile {
-  id      Int    @id @default(autoincrement())
-  userId  Int
-  fileId  Int    @unique 
-  user    User   @relation(fields: [userId], references: [id])
-  file    File   @relation(fields: [fileId], references: [id])
+  ConvertedFile ConvertedFile[]
+  File File[]
 }
-
 
 model ConvertedFile {
   id        Int      @id @default(autoincrement())
   fileId    Int      @unique
-  fileName  String   @unique
+  fileName  String   
+  userId    Int  
   createdAt DateTime @default(now())
   file      File     @relation(fields: [fileId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  @@unique([fileName, userId])
 }

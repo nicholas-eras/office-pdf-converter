@@ -2,12 +2,13 @@
 import { Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../../../prisma/prisma.service';
+import { RedisService } from '../redis/redis.service';
 
 export type User = any;
 export type FileEntity = any;
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService){}
+  constructor(private prisma: PrismaService, private redis: RedisService){}
 
   async findOne(username: string): Promise<User | undefined> {
     return this.prisma.user.findUnique({
@@ -18,12 +19,14 @@ export class UsersService {
   }
 
   async createUser(username: string, password: string): Promise<User | undefined> {
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data:{
         username: username,
         password: await this.hashPassword(password)
       }
     });
+    this.redis.set(user.id.toString(), (process.env.UPLOAD_LIMIT).toString(), 24*60*60);
+    return user;
   }
 
   async getUsers(): Promise<User[] | undefined>{
@@ -36,26 +39,25 @@ export class UsersService {
   }
 
   async userFiles(user: {userId: number, username: string}): Promise<FileEntity[]>{
-    const userFilesWithPdfs = await this.prisma.userFile.findMany({
+    const userFiles = await this.prisma.file.findMany({
       where: {
         userId: user.userId,
       },
-      include: {
-        file: {
-          include: {
-            convertedFiles: true,
-          },
-        },
+    });
+
+    const userFilesPdf = await this.prisma.convertedFile.findMany({
+      where: {
+        userId: user.userId,
       },
     });
-    const result = userFilesWithPdfs.map((userFile) => ({
-      id: userFile.file.id,
-      fileName: userFile.file.fileName,
-      fileExtension: userFile.file.fileExtension,
-      status: userFile.file.status,
-      createdAt: userFile.file.createdAt,
-      pdf: userFile.file.convertedFiles.length > 0 ? userFile.file.convertedFiles[0] : null,
-    }));
+
+    const result = userFiles.map(uf => {
+      const pdf = userFilesPdf.find(obj => obj.fileId === uf.id);
+      return {
+        ...uf,
+        pdf, 
+      };
+    });
     
     return result;    
   }

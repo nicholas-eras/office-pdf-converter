@@ -9,13 +9,6 @@ export class AppController {
     private readonly userService: UsersService,
   ) {}
 
-  @Get("default-nest/:filename")
-  triggerEvent(
-    @Param('filename') filename: string,
-   ) {
-    return this.rabbitMqService.sendMessage(filename);
-  }
-
   @Get("file/:fileId/pdf")
   async getFilePdf(
     @Param('fileId') fileId: string,

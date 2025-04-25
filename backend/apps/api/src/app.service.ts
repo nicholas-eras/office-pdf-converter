@@ -135,25 +135,22 @@ export class AppService {
     
     const fileId = fileExtension != ".pdf" ? (await this.prismaService.file.findUnique({
       where: {
-        fileName: filename
+        fileName_userId: {
+          fileName: filename,
+          userId: user.userId
+        }        
       }
     })).id : (await this.prismaService.convertedFile.findUnique({
         where: {
-          fileName: filename
+          fileName_userId: {
+            fileName: filename,
+            userId: user.userId
+          }
         }
       })).fileId;
 
     if (!fileId) {
       throw new NotFoundException("file not on database");
-    }
-
-    if (!(await this.prismaService.userFile.findUnique({
-      where: {
-        userId: user.userId,
-        fileId: fileId
-      }
-    }))) {
-      throw new UnauthorizedException("This file doesn't belong to you");
     }
 
     const command = new GetObjectCommand({
@@ -176,13 +173,7 @@ export class AppService {
         fileExtension: filename.slice(filename.lastIndexOf(".")),
         fileName: filename,
         status: "awaiting",
-      }
-    });
-
-    await this.prismaService.userFile.create({
-      data: {
-        userId: userId,
-        fileId: fileDatabase.id
+        userId
       }
     });
   }

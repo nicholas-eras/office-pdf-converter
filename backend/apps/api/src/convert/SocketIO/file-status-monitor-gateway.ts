@@ -35,21 +35,21 @@ export class FileStatusMonitorGateway {
   }
 
   @SubscribeMessage('file-to-conversion-queue')
-  async handleFileMonitoring(client: any, fileName: string): Promise<any> {
+  async handleFileMonitoring(client: any, data: any): Promise<any> {    
     try {
       const file = await this.prisma.file.findUnique({
         where: {
-          fileName
+          fileName_userId: {
+            fileName: data.fileName,
+            userId: data.userId,
+          }   
         }
       });    
-      console.log(fileName);
-      const userId = (await this.prisma.userFile.findUnique({
-        where: {
-          fileId: file.id
-        }
-      })).userId;
-
-      const res = firstValueFrom(this.rabbitMqService.sendMessage(`${userId}_${fileName}`)); //nao atribuir a uma variavel da erro, investigar futuramente
+      
+      const res = firstValueFrom(this.rabbitMqService.sendMessage({
+        fileName: `${data.userId}_${data.fileName}`,
+        userId: data.userId
+      })); //nao atribuir a uma variavel da erro, investigar futuramente
       console.log('Resposta do RabbitMQ:', res);
 
       return file;
@@ -77,14 +77,17 @@ export class FileStatusMonitorGateway {
   }
 
   @SubscribeMessage('update-file-status')
-  async handleUpdateFilestatus(client: any, payload: {fileToConvert: string, status: string}): Promise<any> {
+  async handleUpdateFilestatus(client: any, payload: {fileToConvert: string, status: string, userId: number}): Promise<any> {
     this.files[payload.fileToConvert] = payload.status;    
     
     const fileNameWithoutUserId = payload.fileToConvert.slice(payload.fileToConvert.indexOf("_") + 1);
 
     const file = await this.prisma.file.update({      
         where:{
-          fileName: fileNameWithoutUserId
+          fileName_userId: {
+            fileName: fileNameWithoutUserId,
+            userId: payload.userId
+          }   
         },
         data:{
           status: payload.status
@@ -100,18 +103,13 @@ export class FileStatusMonitorGateway {
               payload.fileToConvert.lastIndexOf(".")
             ) + ".pdf",
             fileId: file.id,
+            userId: file.userId
           }
         }
       );
     };
     
-    const userId = (await this.prisma.userFile.findUnique({
-      where: {
-        fileId: file.id
-      }
-    })).userId;
-    
-    this.server.emit(userId.toString(), {
+    this.server.emit(file.userId.toString(), {
       fileName: payload.fileToConvert,
       status: payload.status
     });

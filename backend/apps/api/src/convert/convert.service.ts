@@ -28,12 +28,7 @@ export class ConvertService {
           fileExtension: fileName.slice(fileName.lastIndexOf(".")),
           fileName: fileName,
           status: "awaiting",
-        }
-      });
-      await this.prisma.userFile.create({
-        data:{
-          userId: user.userId,
-          fileId: fileDatabase.id
+          userId: user.userId
         }
       });
  
@@ -51,7 +46,10 @@ export class ConvertService {
     } catch (error) {
       const fileId = (await this.prisma.file.findUnique({
         where: {
-          fileName
+          fileName_userId: {
+            fileName: fileName,
+            userId: user.userId
+          }   
         }
       })).id;
 
@@ -61,15 +59,12 @@ export class ConvertService {
         }
       });
 
-      await this.prisma.userFile.delete({
-        where:{        
-          fileId
-        }
-      });
-
       await this.prisma.file.delete({
         where:{
-          fileName: fileName
+          fileName_userId: {
+            fileName: fileName,
+            userId: user.userId
+          }
         }
       });
 
@@ -83,33 +78,18 @@ export class ConvertService {
     
     const file = await this.prisma.file.findUnique({
       where:{
-        id: fileId
+        id: fileId,
+        userId: userId
       }
     });
     
     if (!file){
-      throw new NotFoundException("file not on database");
-    }
-    
-    if (!(await this.prisma.userFile.findUnique({
-        where:{
-          fileId,
-          userId
-        }
-        })
-      )){
-      throw new UnauthorizedException("This file doesnt belongs to you");
+      throw new NotFoundException("file not on found");
     }
 
     await this.prisma.convertedFile.deleteMany({
       where:{
         fileId: fileId,
-      }
-    });
-
-    await this.prisma.userFile.delete({
-      where:{        
-        fileId
       }
     });
     
@@ -118,8 +98,8 @@ export class ConvertService {
         id: fileId
       }
     });
-
-    await this.appService.deleteFileS3(file.fileName.slice(0, file.fileName.lastIndexOf(".")) + ".pdf");
+    
+    await this.appService.deleteFileS3(userId + "_" + file.fileName.slice(0, file.fileName.lastIndexOf(".")) + ".pdf");
 
     return await this.appService.deleteFileS3(`${userId}_${file.fileName}`);
   }
