@@ -109,25 +109,32 @@ export class AppService {
       throw new UnauthorizedException("User limit reached, try again tomorrow");
     }
 
+    if (await this.filesUploadLimitReached()){
+      throw new UnauthorizedException("Não permitido mais arquivos");
+    }
+    const remainingUploads = +(await this.redisClient.get(user.userId.toString())) - 1;
+
     await this.redisClient.set(
       user.userId.toString(),
-      (+(await this.redisClient.get(user.userId.toString())) - 1).toString(),
+      remainingUploads.toString(),
       24*60*60
     );
-
-    if (await this.filesUploadLimitReached()){
-      throw new UnauthorizedException("Não permitido por hj");
-    }
-
+    
+    await this.redisClient.set(
+      "numberFiles",
+      (+(await this.redisClient.get("numberFiles")) - 1).toString(),
+      24*60*60
+    );
+    
     await this.saveFileOnDatabase(filename, user.userId);    
 
     const command = new PutObjectCommand({ Bucket: process.env.AWS_S3_BUCKET, Key: `${user.userId}_${filename}`, ContentType: contentType });
-    return { "url": await getSignedUrl(this.s3, command, { expiresIn: 60 }) };
+    return { "url": await getSignedUrl(this.s3, command, { expiresIn: 60 }) , remainingUploads: remainingUploads};
   }
 
   private async filesUploadLimitReached():Promise<boolean>{
-    const numberFiles = await this.prismaService.file.count();
-    return +numberFiles >= 30;
+    const numberFiles = +(await this.redisClient.get("numberFiles"));
+    return +numberFiles <= 0;
   }
 
   async getFileS3(filename: string, res: Response, user: {userId: number, username: string}) {
@@ -168,7 +175,7 @@ export class AppService {
   }
 
   private async saveFileOnDatabase(filename: string, userId: number): Promise<void> {
-    const fileDatabase = await this.prismaService.file.create({
+    await this.prismaService.file.create({
       data: {
         fileExtension: filename.slice(filename.lastIndexOf(".")),
         fileName: filename,

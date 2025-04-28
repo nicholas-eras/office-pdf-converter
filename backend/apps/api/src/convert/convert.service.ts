@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import { AppService } from '../app.service';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class ConvertService {
@@ -10,6 +11,7 @@ export class ConvertService {
     private readonly httpService: HttpService, 
     private readonly prisma: PrismaService,
     private readonly appService: AppService,
+    private readonly redisClient: RedisService
   ){}
 
   async convert(file: Express.Multer.File, user: {userId: number, username: string}): Promise<{
@@ -98,6 +100,19 @@ export class ConvertService {
         id: fileId
       }
     });
+
+    await this.redisClient.set(
+      userId.toString(),
+      (+(await this.redisClient.get(userId.toString())) + 1).toString(),
+      24*60*60
+    );
+
+        
+    await this.redisClient.set(
+      "numberFiles",
+      (+(await this.redisClient.get("numberFiles")) + 1).toString(),
+      24*60*60
+    );
     
     await this.appService.deleteFileS3(userId + "_" + file.fileName.slice(0, file.fileName.lastIndexOf(".")) + ".pdf");
 

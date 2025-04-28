@@ -38,7 +38,7 @@ export class UsersService {
     return await bcrypt.hash(password, saltRounds);
   }
 
-  async userFiles(user: {userId: number, username: string}): Promise<FileEntity[]>{
+  async userFiles(user: {userId: number, username: string}): Promise<any>{
     const userFiles = await this.prisma.file.findMany({
       where: {
         userId: user.userId,
@@ -50,6 +50,7 @@ export class UsersService {
         userId: user.userId,
       },
     });
+    const remainingUploads = await this.redis.userRemainingUploads(user.userId);
 
     const result = userFiles.map(uf => {
       const pdf = userFilesPdf.find(obj => obj.fileId === uf.id);
@@ -59,7 +60,7 @@ export class UsersService {
       };
     });
     
-    return result;    
+    return {files: result, remainingUploads: remainingUploads};    
   }
 
   async getFilePDF(fileId: number): Promise<FileEntity>{

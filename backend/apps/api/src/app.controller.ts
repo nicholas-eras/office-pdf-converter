@@ -5,7 +5,6 @@ import { UsersService } from './users/users.service';
 @Controller()
 export class AppController {
   constructor(
-    private readonly rabbitMqService: RabbitMqService,
     private readonly userService: UsersService,
   ) {}
 

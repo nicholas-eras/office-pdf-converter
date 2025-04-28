@@ -10,6 +10,7 @@ import { jwtDecode } from "jwt-decode";
 function UploadPage() {
   const [file, setFile] = useState(null);
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [remainingUploads, setRemainingUploads] = useState(0); 
   const [currentPage, setCurrentPage] = useState(1);
   const [isUploading, setIsUploading] = useState(false);
   const [socketConnected, setSocketConnected] = useState(true);
@@ -117,8 +118,9 @@ function UploadPage() {
 
   const fetchFilesStatus = async () => {
     try {
-      const filesFromBackend = await userFiles();
-      setUploadedFiles(filesFromBackend);
+      const { files, remainingUploads } = await userFiles();      
+      setUploadedFiles(files);
+      setRemainingUploads(remainingUploads);
     } catch (error) {
       if (error.message === 'Unauthorized') {
         handleAuthError();
@@ -143,7 +145,13 @@ function UploadPage() {
   
     setIsUploading(true);
     try {      
-      await uploadToS3(file);
+      const remainingUploadsRes = await uploadToS3(file);
+
+      if (!remainingUploadsRes){
+        return
+      }
+
+      setRemainingUploads(remainingUploadsRes);
 
       socket.emit('file-to-conversion-queue', {
         fileName: file.name,
@@ -173,7 +181,7 @@ function UploadPage() {
       const response = await downloadFile(fileName, type);
       
       if (!response.ok) {
-        throw new Error('Erro ao baixar o arquivo');
+        toast.error(response?.message ?? "Erro ao baixar arquivo");        
       }
 
       const blob = await response.blob();
@@ -220,7 +228,7 @@ function UploadPage() {
   const indexOfLastFile = currentPage * filesPerPage;
   const indexOfFirstFile = indexOfLastFile - filesPerPage;
   const currentFiles = uploadedFiles?.slice(indexOfFirstFile, indexOfLastFile);
- 
+
   return (
     <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
       <div className="relative py-3 sm:max-w-4xl sm:mx-auto w-full">
@@ -261,13 +269,22 @@ function UploadPage() {
             </div>
             <button 
               onClick={handleFileSend}
-              disabled={isUploading || !socketConnected}
+              disabled={isUploading || !socketConnected || !remainingUploads}
               className={`mt-4 text-white font-bold py-2 px-4 rounded w-full ${
                 isUploading || !socketConnected ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
               {isUploading ? 'Enviando...' : 'Enviar'}
             </button>
+            {remainingUploads > 0 ? (
+              <p className="mt-2 text-sm text-gray-600 text-center">
+                Você ainda pode enviar <span className="font-semibold">{remainingUploads}</span> arquivo{remainingUploads > 1 && 's'} hoje.
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-red-600 text-center">
+                Limite diário de uploads atingido.
+              </p>
+            )}
           </div>
           
           <h2 className="mb-4 text-2xl font-semibold text-center text-gray-900">Arquivos Enviados</h2>
@@ -297,6 +314,7 @@ function UploadPage() {
                       <button 
                         onClick={() => handleDownloadFile(file.fileName, 'original')}
                         className="text-blue-600 hover:text-blue-900 mr-2"
+                        disabled={file.status === "processing"}
                       >
                         Original
                       </button>
@@ -311,6 +329,7 @@ function UploadPage() {
                       <button 
                         onClick={() => handleDeleteFile(file.id)}
                         className="text-red-600 hover:text-red-900"
+                        disabled={file.status === "processing"}
                       >
                         Excluir
                       </button>

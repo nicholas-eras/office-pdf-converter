@@ -13,12 +13,12 @@ export async function uploadFile(file) {
     });
 
     if (!response.ok) {
-      throw new Error('Erro ao enviar arquivo');
+      toast.error((await response.json()).message ?? 'Erro ao enviar o arquivo:');    
     }
 
     return await response.json();
   } catch (error) {
-    console.error('Erro no upload do arquivo:', error);
+    toast.error((await response.json()).message ?? 'Erro no upload do arquivo:');    
     throw error;
   }
 }
@@ -38,7 +38,7 @@ const putToS3 = async (url, file) => {
     }
     return "Arquivo enviado com sucesso!";
   } catch (error) {
-    throw error;
+    toast.error((await response.json()).message ?? 'Erro ao enviar o arquivo:');    
   }
 };
 
@@ -57,20 +57,23 @@ export async function uploadToS3(file) {
       })
     });
 
-    if (!response.ok) {
-      throw new Error("Erro ao obter a URL pré-assinada");
+    if (!response.ok) {      
+      toast.error((await response.json())?.message ?? "Erro ao obter URL pré-assinada");
+      return false;
     }
+    const res =  await response.json();
+    console.log(res);
+    const { url, remainingUploads } = res;
 
-    const { url } = await response.json();
-
-    const result = await putToS3(url, file);
+    await putToS3(url, file);
+    return remainingUploads;
   } catch (error) {
-    console.error("Erro no upload para o S3:", error);
-    throw error;
+    toast.error((await response.json()).message ?? 'Erro ao enviar o arquivo:');    
   }
 }
 
 import Router from 'next/router';
+import { toast } from 'react-toastify';
 
 export async function userFiles() {  
   try {
@@ -89,8 +92,6 @@ export async function userFiles() {
     return await response.json();
   } catch (error) {
     Router.push('/login');
-    console.error('Erro ao obter arquivo:', error);
-    throw error;
   }
 }
 
@@ -107,7 +108,7 @@ export async function downloadFile(fileName) {
     });
     return response   
   } catch (error) {
-    console.error('Erro ao baixar o arquivo:', error);    
+    toast.error((await response.json()).message ?? 'Erro ao baixar o arquivo:');    
   }
 };
 
@@ -123,7 +124,7 @@ export async function deleteFile(fileId) {
     });
     return response   
   } catch (error) {
-    console.error('Erro ao deletar o arquivo:', error);    
+    toast.error((await response.json()).message ?? 'Erro ao deletar o arquivo:');    
   }
 };
 
@@ -139,6 +140,6 @@ export async function getFile(fileId) {
     });
     return await response.json()   
   } catch (error) {
-    console.error('Erro ao obter o arquivo:', error);    
+    toast.error((await response.json()).message ?? 'Erro ao obter o arquivo:');    
   }
 }

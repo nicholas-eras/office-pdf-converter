@@ -64,6 +64,10 @@ export class RedisService {
   }
 
   private async numberOfFilesUploadLimit():Promise<void>{
-    await this.set("numberFiles", "30");
+    await this.set("numberFiles", process.env.ALL_UPLOAD_LIMIT);
   };
+
+  async userRemainingUploads(userId: number): Promise<number>{
+   return +(await this.get(userId.toString()));        
+  }
 }
