@@ -25,8 +25,8 @@ model File {
 
 model User {
   id        Int        @id @default(autoincrement())
-  username  String     @unique
-  password  String
+  email     String     @unique
+  password  String?
   createdAt DateTime   @default(now())
 
   ConvertedFile ConvertedFile[]

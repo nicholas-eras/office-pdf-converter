@@ -50,6 +50,17 @@ export default function Login() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    try {
+      const res = await fetch('http://localhost:3000/auth/google');
+      const data = await res.json();
+      window.location.href = data.url; 
+    } catch (err) {
+      console.error('Erro ao iniciar login com Google:', err);
+    }
+  };
+  
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#1E293B] via-[#0F172A] to-[#1E3A8A]">
       <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-lg">
@@ -109,6 +120,19 @@ export default function Login() {
           >
             Entrar
           </button>
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            className="w-full mt-4 bg-white border border-[#D1D5DB] text-[#1E293B] py-2 px-4 rounded-md flex items-center justify-center hover:bg-gray-100"
+          >
+            <img
+              src="https://www.svgrepo.com/show/475656/google-color.svg"
+              alt="Google"
+              className="w-5 h-5 mr-2"
+            />
+            Entrar com Google
+          </button>
+
         </form>
         <div className="mt-6 text-center">
           <p className="text-sm text-[#475569]">

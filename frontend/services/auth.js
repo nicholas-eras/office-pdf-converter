@@ -20,12 +20,10 @@ export async function registerUser(userData) {
 
 export async function loginUser(credentials) {
   try {
-    const token = localStorage.getItem('token');
     const response = await fetch('http://localhost:3000/auth/login/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(credentials),
     });

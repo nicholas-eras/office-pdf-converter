@@ -14,7 +14,7 @@ export class ConvertService {
     private readonly redisClient: RedisService
   ){}
 
-  async convert(file: Express.Multer.File, user: {userId: number, username: string}): Promise<{
+  async convert(file: Express.Multer.File, user: {userId: number, email: string}): Promise<{
     fileName: string;
     mimeType: string;
   }

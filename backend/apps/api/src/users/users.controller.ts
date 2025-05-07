@@ -10,12 +10,12 @@ export class UsersController {
   ) {}
 
   @Post()
-  async createUser(@Body() body: { username: string; password: string }) {
-    const user = await this.userService.findOne(body.username);
+  async createUser(@Body() body: { email: string; password: string }) {
+    const user = await this.userService.findOne(body.email);
     if (user) {
       throw new ConflictException('User already created.');
     }
-    return this.userService.createUser(body.username, body.password);
+    return this.userService.createUser(body.email, body.password);
   }
 
   @UseGuards(JwtAuthGuard)

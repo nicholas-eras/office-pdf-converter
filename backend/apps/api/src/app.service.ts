@@ -104,7 +104,7 @@ export class AppService {
     }
   }
 
-  async PreSignedUrlS3(filename: string, contentType: string, user: {userId: number, username: string}) {
+  async PreSignedUrlS3(filename: string, contentType: string, user: {userId: number, email: string}) {
     if (await this.redisClient.isLimitReached(user.userId)){
       throw new UnauthorizedException("User limit reached, try again tomorrow");
     }
@@ -137,7 +137,7 @@ export class AppService {
     return +numberFiles <= 0;
   }
 
-  async getFileS3(filename: string, res: Response, user: {userId: number, username: string}) {
+  async getFileS3(filename: string, res: Response, user: {userId: number, email: string}) {
     const fileExtension = filename.slice(filename.indexOf("."));
     
     const fileId = fileExtension != ".pdf" ? (await this.prismaService.file.findUnique({

@@ -10,19 +10,29 @@ export type FileEntity = any;
 export class UsersService {
   constructor(private prisma: PrismaService, private redis: RedisService){}
 
-  async findOne(username: string): Promise<User | undefined> {
+  async findOne(email: string): Promise<User | undefined> {
     return this.prisma.user.findUnique({
       where:{
-        username
+        email
       }
     });
   }
 
-  async createUser(username: string, password: string): Promise<User | undefined> {
+  async createUser(email: string, password: string): Promise<User | undefined> {
     const user = await this.prisma.user.create({
       data:{
-        username: username,
+        email: email,
         password: await this.hashPassword(password)
+      }
+    });
+    this.redis.set(user.id.toString(), (process.env.UPLOAD_LIMIT).toString(), 24*60*60);
+    return user;
+  }
+
+  async createFromGoogle(email: string): Promise<User | undefined> {
+    const user = await this.prisma.user.create({
+      data:{
+        email: email,
       }
     });
     this.redis.set(user.id.toString(), (process.env.UPLOAD_LIMIT).toString(), 24*60*60);
@@ -38,7 +48,7 @@ export class UsersService {
     return await bcrypt.hash(password, saltRounds);
   }
 
-  async userFiles(user: {userId: number, username: string}): Promise<any>{
+  async userFiles(user: {userId: number, email: string}): Promise<any>{
     const userFiles = await this.prisma.file.findMany({
       where: {
         userId: user.userId,
